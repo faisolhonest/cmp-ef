@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { Platform, ContentStatus } from '@/lib/types'
@@ -20,35 +20,43 @@ type CalendarItem = {
 
 const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
-
-const PLATFORM_STYLE: Record<Platform, string> = {
-  fb: 'border-blue-100 bg-blue-50/80',
-  ig: 'border-fuchsia-100 bg-fuchsia-50/70',
-  tiktok: 'border-slate-200 bg-slate-50',
-  youtube: 'border-rose-100 bg-rose-50/80',
-  shopee: 'border-orange-100 bg-orange-50/80',
-  other: 'border-slate-200 bg-slate-50',
-}
-
-const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published']
+const STATUS_ORDER: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published']
+const STATUS_LEGEND: { status: ContentStatus; label: string; dot: string }[] = [
+  { status: 'draft', label: 'Draft', dot: 'bg-slate-400' },
+  { status: 'review', label: 'Review', dot: 'bg-yellow-400' },
+  { status: 'approved', label: 'Approved', dot: 'bg-blue-400' },
+  { status: 'scheduled', label: 'Scheduled', dot: 'bg-violet-400' },
+  { status: 'published', label: 'Published', dot: 'bg-green-400' },
+]
 
 export default function PlannerPage() {
+  const today = new Date()
   const [view, setView] = useState<'calendar' | 'kanban' | 'timeline'>('calendar')
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(today)
   const [items, setItems] = useState<CalendarItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [brandFilter, setBrandFilter] = useState('all')
+  const [campaignFilter, setCampaignFilter] = useState('all')
+  const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | ContentStatus>('all')
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+  const defaultDay =
+    today.getFullYear() === year && today.getMonth() === month ? today.getDate() : 1
+
+  useEffect(() => {
+    setSelectedDay(defaultDay)
+  }, [defaultDay])
 
   useEffect(() => {
     setLoading(true)
-    setSelectedDay(null)
+
     const startOfMonth = new Date(year, month, 1).toISOString()
     const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
 
-    supabase
+    let query = supabase
       .from('cmp_schedules')
       .select(`
         id, content_item_id, platform, scheduled_at,
@@ -58,307 +66,468 @@ export default function PlannerPage() {
       .gte('scheduled_at', startOfMonth)
       .lte('scheduled_at', endOfMonth)
       .order('scheduled_at')
-      .then(({ data }) => {
-        setItems(
-          (data ?? []).map((s: any) => {
-            const content = Array.isArray(s.cmp_content_items) ? s.cmp_content_items[0] : s.cmp_content_items
-            const campaign = content?.cmp_campaigns
-              ? (Array.isArray(content.cmp_campaigns) ? content.cmp_campaigns[0] : content.cmp_campaigns)
-              : null
-            return {
-              id: s.id,
-              content_item_id: s.content_item_id,
-              platform: s.platform as Platform,
-              scheduled_at: s.scheduled_at,
-              title: content?.title ?? '(ไม่มีชื่อ)',
-              caption_main: content?.caption_main ?? null,
-              status: (content?.status ?? 'draft') as ContentStatus,
-              campaign_id: content?.campaign_id ?? null,
-              campaign_name: campaign?.name ?? null,
-            }
-          })
-        )
-        setLoading(false)
-      })
-  }, [year, month])
 
-  useEffect(() => {
-    if (selectedDay === null) return
+    if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
+    if (platformFilter !== 'all') query = query.eq('platform', platformFilter)
+    if (statusFilter !== 'all') query = query.eq('cmp_content_items.status', statusFilter)
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setSelectedDay(null)
-      }
+    query.then(({ data }) => {
+      setItems(
+        (data ?? []).map((schedule: any) => {
+          const content = Array.isArray(schedule.cmp_content_items) ? schedule.cmp_content_items[0] : schedule.cmp_content_items
+          const campaign = content?.cmp_campaigns
+            ? (Array.isArray(content.cmp_campaigns) ? content.cmp_campaigns[0] : content.cmp_campaigns)
+            : null
+
+          return {
+            id: schedule.id,
+            content_item_id: schedule.content_item_id,
+            platform: schedule.platform as Platform,
+            scheduled_at: schedule.scheduled_at,
+            title: content?.title ?? '(ไม่มีชื่อ)',
+            caption_main: content?.caption_main ?? null,
+            status: (content?.status ?? 'draft') as ContentStatus,
+            campaign_id: content?.campaign_id ?? null,
+            campaign_name: campaign?.name ?? null,
+          }
+        })
+      )
+      setLoading(false)
+    })
+  }, [campaignFilter, month, platformFilter, statusFilter, year])
+
+  const itemsByDay = useMemo(() => {
+    const grouped: Record<number, CalendarItem[]> = {}
+    for (const item of items) {
+      const day = new Date(item.scheduled_at).getDate()
+      if (!grouped[day]) grouped[day] = []
+      grouped[day].push(item)
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedDay])
-
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const today = new Date()
-
-  const itemsByDay: Record<number, CalendarItem[]> = {}
-  for (const item of items) {
-    const d = new Date(item.scheduled_at).getDate()
-    if (!itemsByDay[d]) itemsByDay[d] = []
-    itemsByDay[d].push(item)
-  }
+    return grouped
+  }, [items])
 
   const selectedDayItems = selectedDay !== null ? (itemsByDay[selectedDay] ?? []) : []
 
+  const upcomingItems = useMemo(() => {
+    const now = new Date()
+    return items
+      .filter((item) => item.status === 'scheduled' && new Date(item.scheduled_at) >= now)
+      .sort((a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at))
+      .slice(0, 5)
+  }, [items])
+
+  const campaignOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of items) {
+      if (item.campaign_id && item.campaign_name) map.set(item.campaign_id, item.campaign_name)
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+  }, [items])
+
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7
+  const trailingDays = totalCells - firstDay - daysInMonth
+  const selectedLabel = new Date(year, month, selectedDay ?? defaultDay).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+
   return (
-    <>
-      <section className="page-header">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">ปฏิทินคอนเทนต์</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">วางแผนและติดตามสถานะโพสต์ทุกช่องทาง</p>
-          </div>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="flex items-center gap-2">
-              <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
-                ‹
-              </button>
-              <span className="min-w-[128px] text-center text-sm font-semibold text-slate-900">
-                {MONTHS_TH[month]} {year + 543}
-              </span>
-              <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
-                ›
-              </button>
+    <div className="planner-shell">
+      <section className="planner-main">
+        <div className="flex h-full min-h-0 flex-col gap-4">
+          <section className="planner-header-card shrink-0">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-blue-50 text-[var(--brand)]">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M16 3v4M8 3v4M3 10h18" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-[1.75rem] font-semibold leading-tight text-slate-950">ปฏิทินคอนเทนต์</h1>
+                  <p className="mt-1 text-sm text-[var(--muted)]">วางแผน จัดคิว และติดตามโพสต์ทุกช่องทางในมุมมองเดียว</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="segmented-control">
+                  {(['calendar', 'kanban', 'timeline'] as const).map((item) => (
+                    <button key={item} type="button" onClick={() => setView(item)} className="segmented-option text-sm" data-active={view === item}>
+                      {item === 'calendar' ? 'Calendar' : item === 'kanban' ? 'Kanban' : 'Timeline'}
+                    </button>
+                  ))}
+                </div>
+                <Link href="/content/new" className="primary-button px-4 py-2.5 text-center text-sm font-semibold">
+                  + เพิ่มกิจกรรม
+                </Link>
+              </div>
             </div>
-            <div className="segmented-control">
-              {(['calendar', 'kanban', 'timeline'] as const).map((v) => (
-                <button key={v} onClick={() => setView(v)} className="segmented-option text-sm" data-active={view === v}>
-                  {v === 'calendar' ? 'Calendar' : v === 'kanban' ? 'Kanban' : 'Timeline'}
-                </button>
-              ))}
+          </section>
+
+          <section className="planner-filter-card flex-1 min-h-0">
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <FilterSelect
+                    icon={<FilterIcon icon="brand" />}
+                    label="แบรนด์"
+                    value={brandFilter}
+                    onChange={setBrandFilter}
+                    options={[{ value: 'all', label: 'ทั้งหมด' }]}
+                  />
+                  <FilterSelect
+                    icon={<FilterIcon icon="campaign" />}
+                    label="แคมเปญ"
+                    value={campaignFilter}
+                    onChange={setCampaignFilter}
+                    options={[{ value: 'all', label: 'ทั้งหมด' }, ...campaignOptions]}
+                  />
+                  <FilterSelect
+                    icon={<FilterIcon icon="platform" />}
+                    label="ช่องทาง"
+                    value={platformFilter}
+                    onChange={(value) => setPlatformFilter(value as 'all' | Platform)}
+                    options={[
+                      { value: 'all', label: 'ทั้งหมด' },
+                      { value: 'fb', label: 'Facebook' },
+                      { value: 'ig', label: 'Instagram' },
+                      { value: 'tiktok', label: 'TikTok' },
+                      { value: 'youtube', label: 'YouTube' },
+                      { value: 'shopee', label: 'Shopee' },
+                      { value: 'other', label: 'อื่นๆ' },
+                    ]}
+                  />
+                  <FilterSelect
+                    icon={<FilterIcon icon="status" />}
+                    label="สถานะ"
+                    value={statusFilter}
+                    onChange={(value) => setStatusFilter(value as 'all' | ContentStatus)}
+                    options={[
+                      { value: 'all', label: 'ทั้งหมด' },
+                      { value: 'draft', label: 'Draft' },
+                      { value: 'review', label: 'Review' },
+                      { value: 'approved', label: 'Approved' },
+                      { value: 'scheduled', label: 'Scheduled' },
+                      { value: 'published', label: 'Published' },
+                    ]}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandFilter('all')
+                      setCampaignFilter('all')
+                      setPlatformFilter('all')
+                      setStatusFilter('all')
+                      setCurrentDate(new Date())
+                      setSelectedDay(new Date().getDate())
+                    }}
+                    className="secondary-button px-3 py-2 text-sm"
+                  >
+                    รีเซ็ต
+                  </button>
+                  <button type="button" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = new Date()
+                      setCurrentDate(now)
+                      setSelectedDay(now.getDate())
+                    }}
+                    className="secondary-button px-3 py-2 text-sm"
+                  >
+                    วันนี้
+                  </button>
+                  <button type="button" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
+                    ›
+                  </button>
+                  <label className="input-shell relative flex min-w-[138px] items-center gap-2 px-3 py-2 text-sm text-slate-700">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="m7 10 5 5 5-5" />
+                    </svg>
+                    <select
+                      value={month}
+                      onChange={(event) => setCurrentDate(new Date(year, Number(event.target.value), 1))}
+                      className="w-full appearance-none bg-transparent pr-4 text-sm font-medium text-slate-700 outline-none"
+                    >
+                      {MONTHS_TH.map((label, index) => (
+                        <option key={label} value={index}>{label} {year + 543}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-4 flex shrink-0 flex-wrap items-center gap-5 border-b border-[var(--line)] pb-4">
+                {STATUS_LEGEND.map((item) => (
+                  <div key={item.status} className="flex items-center gap-2 text-sm text-slate-600">
+                    <span className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-[18px] border border-[var(--line)] bg-white">
+                {view === 'calendar' ? (
+                  <>
+                    <div className="grid grid-cols-7 border-b border-[var(--line)] bg-slate-50">
+                      {WEEKDAYS.map((day) => (
+                        <div key={day} className="px-4 py-3 text-center text-sm font-medium text-[var(--muted)]">{day}</div>
+                      ))}
+                    </div>
+
+                    <div className="planner-calendar-grid">
+                      {Array.from({ length: firstDay }).map((_, index) => (
+                        <div key={`empty-${index}`} className="hidden border-b border-r border-[var(--line)] bg-slate-50/70 xl:block" />
+                      ))}
+
+                      {Array.from({ length: daysInMonth }).map((_, index) => {
+                        const day = index + 1
+                        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+                        const isSelected = selectedDay === day
+                        const dayItems = itemsByDay[day] ?? []
+
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => setSelectedDay(day)}
+                            className={`flex min-h-[130px] flex-col gap-3 border-b border-r border-[var(--line)] p-3 text-left transition-colors ${
+                              isToday
+                                ? 'bg-blue-50 ring-1 ring-inset ring-blue-500'
+                                : isSelected
+                                ? 'bg-slate-50'
+                                : 'bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-slate-700'}`}>{day}</span>
+                            <div className="flex flex-col gap-2">
+                              {dayItems.slice(0, 3).map((item) => (
+                                <EventCard key={item.id} item={item} />
+                              ))}
+                              {dayItems.length > 3 && (
+                                <span className="text-[11px] font-medium text-[var(--muted)]">+{dayItems.length - 3} รายการ</span>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+
+                      {Array.from({ length: trailingDays }).map((_, index) => (
+                        <div key={`tail-${index}`} className="hidden border-b border-r border-[var(--line)] bg-slate-50/70 xl:block" />
+                      ))}
+                    </div>
+                  </>
+                ) : view === 'kanban' ? (
+                  <KanbanView items={items} loading={loading} />
+                ) : (
+                  <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
+                )}
+              </div>
             </div>
-            <Link href="/content/new" className="primary-button px-4 py-2.5 text-center text-sm font-semibold">
-              + เพิ่มกิจกรรม
-            </Link>
-          </div>
+          </section>
         </div>
       </section>
 
-      <div style={{ display: 'flex', gap: '16px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {view === 'calendar' && (
-            <CalendarView
-              loading={loading}
-              itemsByDay={itemsByDay}
-              firstDay={firstDay}
-              daysInMonth={daysInMonth}
-              year={year}
-              month={month}
-              today={today}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-            />
-          )}
+      <aside className="planner-sidebar">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+          <section className="surface-card shrink-0 p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-950">โพสต์ถัดไป</h3>
+              <Link href="/content" className="text-sm font-medium text-[var(--brand)]">ดูทั้งหมด</Link>
+            </div>
+            {upcomingItems.length === 0 ? (
+              <p className="text-sm text-[var(--muted)]">ยังไม่มีโพสต์ที่กำลังจะมาถึง</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {upcomingItems.map((item) => (
+                  <PostPreviewCard key={item.id} item={item} compact />
+                ))}
+              </div>
+            )}
+          </section>
 
-          {view === 'kanban' && <KanbanView items={items} loading={loading} />}
+          <section className="surface-card flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+            <div className="mb-4 shrink-0">
+              <h3 className="text-base font-semibold text-slate-950">รายละเอียดวันที่เลือก {selectedLabel}</h3>
+              <p className="mt-1 text-sm text-[var(--muted)]">เลือกวันบนปฏิทินเพื่ออัปเดตรายการฝั่งขวา</p>
+            </div>
 
-          {view === 'timeline' && (
-            <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
-          )}
+            {selectedDayItems.length === 0 ? (
+              <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์สำหรับวันที่เลือก</div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col gap-3 pr-1">
+                  {selectedDayItems.map((item) => (
+                    <DayDetailCard key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         </div>
-
-        <div style={{ width: '320px', flexShrink: 0, position: 'sticky', top: '24px', alignSelf: 'flex-start' }}>
-          <RightPanel
-            selectedDay={selectedDay}
-            month={month}
-            year={year}
-            items={selectedDayItems}
-            onClose={() => setSelectedDay(null)}
-          />
-        </div>
-      </div>
-    </>
+      </aside>
+    </div>
   )
 }
 
-function CalendarView({
-  loading, itemsByDay, firstDay, daysInMonth, year, month, today, selectedDay, onSelectDay,
+function FilterSelect({
+  icon,
+  label,
+  value,
+  onChange,
+  options,
 }: {
-  loading: boolean
-  itemsByDay: Record<number, CalendarItem[]>
-  firstDay: number
-  daysInMonth: number
-  year: number
-  month: number
-  today: Date
-  selectedDay: number | null
-  onSelectDay: (day: number) => void
+  icon: React.ReactNode
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
 }) {
   return (
-    <section className="surface-card p-4 md:p-6">
-      {loading ? (
-        <p className="py-12 text-center text-sm text-[var(--muted)]">กำลังโหลด...</p>
-      ) : (
-        <>
-          <div className="mb-3 grid grid-cols-7 gap-2">
-            {WEEKDAYS.map((d) => (
-              <div key={d} className="rounded-[12px] bg-[var(--panel-soft)] py-3 text-center text-sm text-[var(--muted)]">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-7">
-            {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`empty-${i}`} className="hidden min-h-[138px] rounded-[16px] border border-dashed border-[var(--line)] bg-[var(--panel-soft)] md:block" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1
-              const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
-              const isSelected = selectedDay === day
-              const dayItems = itemsByDay[day] ?? []
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => onSelectDay(day)}
-                  className={`flex min-h-[138px] flex-col gap-2 rounded-[16px] border p-3 text-left transition-colors ${
-                    isToday
-                      ? 'border-blue-500 bg-blue-50'
-                      : isSelected
-                      ? 'border-slate-400 bg-slate-50'
-                      : 'border-[var(--line)] bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <span className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-slate-700'}`}>{day}</span>
-                  {dayItems.slice(0, 3).map((item) => (
-                    <EventCard key={item.id} item={item} />
-                  ))}
-                  {dayItems.length > 3 && (
-                    <span className="pl-1 text-[0.72rem] text-[var(--muted)]">+{dayItems.length - 3} อีก</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </section>
+    <label className="input-shell relative flex items-center gap-3 px-3.5 py-3">
+      <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-slate-50 text-slate-400">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--muted)]">{label}</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="mt-1 w-full appearance-none bg-transparent pr-5 text-sm font-medium text-slate-800 outline-none"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </span>
+      <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path d="m7 10 5 5 5-5" />
+      </svg>
+    </label>
   )
 }
 
 function EventCard({ item }: { item: CalendarItem }) {
-  const time = new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-
   return (
-    <div className={`rounded-[12px] border px-2.5 py-2 text-[0.72rem] leading-snug ${PLATFORM_STYLE[item.platform] ?? PLATFORM_STYLE.other}`}>
-      <div className="mb-1 flex items-center gap-2">
+    <div className="rounded-[12px] border border-[var(--line)] bg-white px-2.5 py-2">
+      <div className="flex items-center gap-2">
         <PlatformIcon platform={item.platform} />
-        <span className="text-[0.68rem] text-[var(--muted)]">{time}</span>
+        <span className="text-[10px] font-medium text-[var(--muted)]">
+          {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+        </span>
       </div>
-      <strong className="block truncate text-slate-900">{item.title}</strong>
+      <p className="mt-1 truncate text-[11px] font-semibold text-slate-900">{item.title}</p>
     </div>
   )
 }
 
-function RightPanel({
-  selectedDay,
-  month,
-  year,
-  items,
-  onClose,
-}: {
-  selectedDay: number | null
-  month: number
-  year: number
-  items: CalendarItem[]
-  onClose: () => void
-}) {
-  const dateLabel = selectedDay !== null
-    ? new Date(year, month, selectedDay).toLocaleDateString('th-TH', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : null
-
+function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compact?: boolean }) {
   return (
-    <div
-      style={{ maxHeight: 'calc(100vh - 80px)' }}
-      className="surface-card flex flex-col overflow-hidden"
-    >
-      {selectedDay === null ? (
-        <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-          <CalendarEmptyIcon />
-          <p className="text-sm font-medium text-slate-700">เลือกวันเพื่อดูกำหนดการ</p>
-          <p className="text-xs text-[var(--muted)]">คลิกที่วันใดก็ได้บนปฏิทิน</p>
+    <div className="surface-muted p-3 transition-colors hover:bg-white">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] bg-white">
+          <PlatformIcon platform={item.platform} />
         </div>
-      ) : (
-        <>
-          <div className="border-b border-[var(--line)] p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-medium text-[var(--brand)]">กำหนดการประจำวัน</p>
-                <h3 className="mt-0.5 text-base font-semibold leading-snug text-slate-950">{dateLabel}</h3>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">{items.length} โพสต์</p>
-              </div>
-              <button type="button" onClick={onClose} className="secondary-button px-2.5 py-1 text-xs">
-                ปิด
-              </button>
-            </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+            <StatusBadge status={item.status} />
           </div>
-
-          <div className="flex-1 overflow-y-auto p-3">
-            {items.length === 0 ? (
-              <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์ที่กำหนดไว้</div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {items.map((item) => (
-                  <div key={item.id} className="surface-muted p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <PlatformIcon platform={item.platform} />
-                          <span className="text-xs text-[var(--muted)]">
-                            {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <h4 className="mt-2 text-sm font-semibold text-slate-950">{item.title}</h4>
-                      </div>
-                      <StatusBadge status={item.status} />
-                    </div>
-                    {item.caption_main && (
-                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">
-                        {item.caption_main.trim()}
-                      </p>
-                    )}
-                    <div className="mt-3">
-                      <Link href={`/content/${item.content_item_id}`} className="text-xs font-medium text-[var(--brand)]">
-                        ดูรายละเอียด →
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+            {' · '}
+            {new Date(item.scheduled_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          {!compact && item.caption_main && (
+            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">{item.caption_main.trim()}</p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-function CalendarEmptyIcon() {
+function DayDetailCard({ item }: { item: CalendarItem }) {
   return (
-    <svg viewBox="0 0 40 40" width="40" height="40" fill="none" className="text-slate-300">
-      <rect x="4" y="8" width="32" height="28" rx="4" stroke="currentColor" strokeWidth="2" />
-      <path d="M4 16h32" stroke="currentColor" strokeWidth="2" />
-      <path d="M13 4v8M27 4v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 24h6M22 24h6M12 30h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    <div className="surface-muted p-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] bg-white">
+          <PlatformIcon platform={item.platform} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <StatusBadge status={item.status} />
+          </div>
+
+          <dl className="mt-3 grid grid-cols-[88px_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs">
+            <dt className="text-[var(--muted)]">แคมเปญ</dt>
+            <dd className="truncate text-slate-700">{item.campaign_name ?? 'ไม่ระบุ'}</dd>
+            <dt className="text-[var(--muted)]">ช่องทาง</dt>
+            <dd className="uppercase text-slate-700">{item.platform}</dd>
+            <dt className="text-[var(--muted)]">สถานะ</dt>
+            <dd className="text-slate-700">{item.status}</dd>
+            <dt className="text-[var(--muted)]">ผู้รับผิดชอบ</dt>
+            <dd className="text-slate-700">ไม่ระบุ</dd>
+          </dl>
+
+          <Link href={`/content/${item.content_item_id}`} className="primary-button mt-4 inline-flex px-3 py-2 text-xs font-semibold">
+            ดูรายละเอียดโพสต์
+          </Link>
+        </div>
+      </div>
+    </div>
   )
+}
+
+function FilterIcon({ icon }: { icon: 'brand' | 'campaign' | 'platform' | 'status' }) {
+  switch (icon) {
+    case 'brand':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M4 18h16M7 18V8l5-3 5 3v10M9 11h6" />
+        </svg>
+      )
+    case 'campaign':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M5 19V5l12 4-12 4M17 9h2a2 2 0 0 1 2 2v3" />
+        </svg>
+      )
+    case 'platform':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="12" rx="2" />
+          <path d="M8 21h8M12 17v4" />
+        </svg>
+      )
+    default:
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M6 4h12l-1 7H7L6 4Zm1 9h10l1 7H6l1-7Z" />
+        </svg>
+      )
+  }
 }
 
 function KanbanView({ items, loading }: { items: CalendarItem[]; loading: boolean }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-5">
-      {ALL_STATUSES.map((status) => {
+    <div className="grid h-full gap-4 overflow-auto xl:grid-cols-5">
+      {STATUS_ORDER.map((status) => {
         const statusItems = items.filter((item) => item.status === status)
         return (
           <section key={status} className="surface-card min-h-[220px] p-4">
@@ -377,9 +546,7 @@ function KanbanView({ items, loading }: { items: CalendarItem[]; loading: boolea
                     <p className="truncate text-sm font-medium text-slate-900">{item.title}</p>
                     <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
                       <PlatformIcon platform={item.platform} />
-                      <span>
-                        {new Date(item.scheduled_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
-                      </span>
+                      <span>{new Date(item.scheduled_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
                     </div>
                   </Link>
                 ))}
@@ -393,7 +560,12 @@ function KanbanView({ items, loading }: { items: CalendarItem[]; loading: boolea
 }
 
 function TimelineView({
-  items, loading, daysInMonth, year, month, today,
+  items,
+  loading,
+  daysInMonth,
+  year,
+  month,
+  today,
 }: {
   items: CalendarItem[]
   loading: boolean
@@ -415,41 +587,34 @@ function TimelineView({
     campaignMap.get(key)!.items.push(item)
   }
 
-  const rows = Array.from(campaignMap.entries()).sort(([a], [b]) => {
-    if (a === '__none__') return 1
-    if (b === '__none__') return -1
-    return 0
-  })
-
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  const rows = Array.from(campaignMap.entries())
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1)
   const todayDay = today.getFullYear() === year && today.getMonth() === month ? today.getDate() : -1
 
   return (
-    <section className="surface-card p-5 md:p-6">
-      {loading ? (
-        <p className="py-10 text-center text-[var(--muted)]">กำลังโหลด...</p>
-      ) : rows.length === 0 ? (
-        <p className="py-10 text-center text-[var(--muted)]">ไม่มีกำหนดการในเดือนนี้</p>
-      ) : (
-        <div className="table-shell">
+    <div className="table-shell h-full">
+      <section className="surface-card h-full p-5 md:p-6">
+        {loading ? (
+          <p className="py-10 text-center text-[var(--muted)]">กำลังโหลด...</p>
+        ) : rows.length === 0 ? (
+          <p className="py-10 text-center text-[var(--muted)]">ไม่มีกำหนดการในเดือนนี้</p>
+        ) : (
           <table className="w-full border-collapse" style={{ minWidth: `${180 + daysInMonth * 44}px` }}>
             <thead>
               <tr>
                 <th className="w-[180px] pb-3 pr-4 text-left text-xs font-medium text-[var(--muted)]">แคมเปญ</th>
-                {days.map((d) => (
-                  <th key={d} className={`w-11 pb-3 text-center text-xs font-medium ${d === todayDay ? 'text-slate-950' : 'text-[var(--muted)]'}`}>
-                    {d}
-                  </th>
+                {days.map((day) => (
+                  <th key={day} className={`w-11 pb-3 text-center text-xs font-medium ${day === todayDay ? 'text-slate-950' : 'text-[var(--muted)]'}`}>{day}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map(([key, row]) => {
-                const itemsByDay: Record<number, CalendarItem[]> = {}
+                const rowItemsByDay: Record<number, CalendarItem[]> = {}
                 for (const item of row.items) {
-                  const d = new Date(item.scheduled_at).getDate()
-                  if (!itemsByDay[d]) itemsByDay[d] = []
-                  itemsByDay[d].push(item)
+                  const day = new Date(item.scheduled_at).getDate()
+                  if (!rowItemsByDay[day]) rowItemsByDay[day] = []
+                  rowItemsByDay[day].push(item)
                 }
 
                 return (
@@ -459,30 +624,26 @@ function TimelineView({
                         {row.name}
                       </span>
                     </td>
-                    {days.map((d) => {
-                      const dayItems = itemsByDay[d] ?? []
-                      const isToday = d === todayDay
-                      return (
-                        <td key={d} className={`py-2 text-center align-top ${isToday ? 'bg-slate-50' : ''}`}>
-                          <div className="flex flex-col items-center gap-1">
-                            {dayItems.map((item) => (
-                              <Link key={item.id} href={`/content/${item.content_item_id}`} title={`${item.title}\n${new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`}>
-                                <span className="inline-flex rounded-[10px] border border-[var(--line)] bg-white p-1">
-                                  <PlatformIcon platform={item.platform} />
-                                </span>
-                              </Link>
-                            ))}
-                          </div>
-                        </td>
-                      )
-                    })}
+                    {days.map((day) => (
+                      <td key={day} className={`py-2 text-center align-top ${day === todayDay ? 'bg-slate-50' : ''}`}>
+                        <div className="flex flex-col items-center gap-1">
+                          {(rowItemsByDay[day] ?? []).map((item) => (
+                            <Link key={item.id} href={`/content/${item.content_item_id}`}>
+                              <span className="inline-flex rounded-[10px] border border-[var(--line)] bg-white p-1">
+                                <PlatformIcon platform={item.platform} />
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </td>
+                    ))}
                   </tr>
                 )
               })}
             </tbody>
           </table>
-        </div>
-      )}
-    </section>
+        )}
+      </section>
+    </div>
   )
 }

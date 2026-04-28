@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Sidebar from '@/components/Sidebar'
+import AppShell from '@/components/AppShell'
 
 export const metadata: Metadata = {
   title: 'CMP - Evergreen Farming',
@@ -14,12 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta charSet="utf-8" />
       </head>
       <body className="app-body">
-        <div className="app-shell">
-          <Sidebar />
-          <main className="main-panel">
-            {children}
-          </main>
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   )
