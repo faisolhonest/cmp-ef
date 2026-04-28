@@ -96,7 +96,7 @@ export default function ContentPage() {
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-3">
+      <section className="surface-card toolbar-card">
         <Select
           value={filterStatus}
           onChange={(v) => setFilterStatus(v as ContentStatus | '')}
@@ -151,7 +151,7 @@ export default function ContentPage() {
             ล้างตัวกรอง
           </button>
         )}
-      </div>
+      </section>
 
       <section className="surface-card p-5 md:p-6">
         {loading ? (

@@ -63,49 +63,30 @@ textarea::placeholder {
 }
 
 .app-shell {
-  max-width: 1480px;
-  margin: 0 auto;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  border: 1px solid var(--line);
-  border-radius: 28px;
+  width: 100%;
+  min-height: 100vh;
   overflow: hidden;
   background: #fbfcfe;
 }
 
-.app-shell-fullbleed {
-  max-width: none;
-  width: calc(100% + 32px);
-  min-height: 100vh;
-  margin: -16px;
-  border-radius: 0;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-}
-
 .app-body {
-  padding: 16px;
+  padding: 0;
 }
 
 .main-panel {
-  min-height: calc(100vh - 48px);
-  padding: 24px;
+  min-height: 100vh;
+  padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-
-.main-panel-fullbleed {
-  min-height: calc(100vh - 48px);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  gap: 16px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .sidebar-shell {
-  min-height: calc(100vh - 48px);
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -211,6 +192,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .surface-muted {
@@ -224,6 +206,14 @@ textarea::placeholder {
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 20px 24px;
+}
+
+.toolbar-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 18px;
 }
 
 .input-shell {
@@ -350,22 +340,12 @@ textarea::placeholder {
     grid-template-columns: 1fr;
   }
 
-  .app-shell-fullbleed {
-    width: calc(100% + 24px);
-    margin: -12px;
-  }
-
   .main-panel {
     min-height: auto;
   }
 
   .sidebar-shell {
     min-height: auto;
-  }
-
-  .main-panel-fullbleed {
-    min-height: auto;
-    overflow: visible;
   }
 
   .planner-shell {
@@ -387,15 +367,15 @@ textarea::placeholder {
 }
 
 @media (max-width: 768px) {
-  .app-body {
-    padding: 12px;
-  }
-
   .main-panel {
     padding: 16px;
   }
 
   .page-header {
     padding: 18px;
+  }
+
+  .toolbar-card {
+    padding: 14px;
   }
 }
