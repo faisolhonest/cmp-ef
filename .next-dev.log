@@ -1,0 +1,14 @@
+
+> cmp-ef@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1834ms
+ ○ Compiling / ...
+ ✓ Compiled / in 11.2s (593 modules)
+ GET / 200 in 1866ms
+ GET / 200 in 11485ms
