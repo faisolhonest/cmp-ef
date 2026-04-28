@@ -142,35 +142,39 @@ export default function PlannerPage() {
         </div>
       </section>
 
-      {view === 'calendar' && (
-        <CalendarView
-          loading={loading}
-          itemsByDay={itemsByDay}
-          firstDay={firstDay}
-          daysInMonth={daysInMonth}
-          year={year}
-          month={month}
-          today={today}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-        />
-      )}
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {view === 'calendar' && (
+            <CalendarView
+              loading={loading}
+              itemsByDay={itemsByDay}
+              firstDay={firstDay}
+              daysInMonth={daysInMonth}
+              year={year}
+              month={month}
+              today={today}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+            />
+          )}
 
-      {view === 'kanban' && <KanbanView items={items} loading={loading} />}
+          {view === 'kanban' && <KanbanView items={items} loading={loading} />}
 
-      {view === 'timeline' && (
-        <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
-      )}
+          {view === 'timeline' && (
+            <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
+          )}
+        </div>
 
-      {selectedDay !== null && (
-        <DayDetailModal
-          day={selectedDay}
-          month={month}
-          year={year}
-          items={selectedDayItems}
-          onClose={() => setSelectedDay(null)}
-        />
-      )}
+        <div style={{ width: '320px', flexShrink: 0, position: 'sticky', top: '24px', alignSelf: 'flex-start' }}>
+          <RightPanel
+            selectedDay={selectedDay}
+            month={month}
+            year={year}
+            items={selectedDayItems}
+            onClose={() => setSelectedDay(null)}
+          />
+        </div>
+      </div>
     </>
   )
 }
@@ -252,78 +256,102 @@ function EventCard({ item }: { item: CalendarItem }) {
   )
 }
 
-function DayDetailModal({
-  day,
+function RightPanel({
+  selectedDay,
   month,
   year,
   items,
   onClose,
 }: {
-  day: number
+  selectedDay: number | null
   month: number
   year: number
   items: CalendarItem[]
   onClose: () => void
 }) {
-  const dateLabel = new Date(year, month, day).toLocaleDateString('th-TH', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const dateLabel = selectedDay !== null
+    ? new Date(year, month, selectedDay).toLocaleDateString('th-TH', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/30 p-0 md:p-4"
-      onClick={onClose}
+      style={{ maxHeight: 'calc(100vh - 80px)' }}
+      className="surface-card flex flex-col overflow-hidden"
     >
-      <div
-        className="h-full w-full max-w-[440px] overflow-y-auto border-l border-[var(--line)] bg-white p-5 shadow-2xl md:rounded-[20px] md:border"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-[var(--brand)]">กำหนดการประจำวัน</p>
-            <h3 className="mt-1 text-xl font-semibold text-slate-950">{dateLabel}</h3>
-            <p className="mt-1 text-sm text-[var(--muted)]">{items.length} โพสต์ที่กำหนดไว้</p>
-          </div>
-          <button type="button" onClick={onClose} className="secondary-button px-3 py-1.5 text-sm">
-            ปิด
-          </button>
+      {selectedDay === null ? (
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+          <CalendarEmptyIcon />
+          <p className="text-sm font-medium text-slate-700">เลือกวันเพื่อดูกำหนดการ</p>
+          <p className="text-xs text-[var(--muted)]">คลิกที่วันใดก็ได้บนปฏิทิน</p>
         </div>
-
-        {items.length === 0 ? (
-          <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์ที่กำหนดไว้สำหรับวันนี้</div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {items.map((item) => (
-              <div key={item.id} className="surface-muted p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <PlatformIcon platform={item.platform} />
-                      <span className="text-xs font-medium text-[var(--muted)]">
-                        {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <h4 className="mt-3 text-sm font-semibold text-slate-950">{item.title}</h4>
-                  </div>
-                  <StatusBadge status={item.status} />
-                </div>
-                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">
-                  {item.caption_main?.trim() || 'ไม่มีคำบรรยาย'}
-                </p>
-                <div className="mt-4">
-                  <Link href={`/content/${item.content_item_id}`} className="text-sm font-medium text-[var(--brand)]">
-                    เปิดรายละเอียดโพสต์ →
-                  </Link>
-                </div>
+      ) : (
+        <>
+          <div className="border-b border-[var(--line)] p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium text-[var(--brand)]">กำหนดการประจำวัน</p>
+                <h3 className="mt-0.5 text-base font-semibold leading-snug text-slate-950">{dateLabel}</h3>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">{items.length} โพสต์</p>
               </div>
-            ))}
+              <button type="button" onClick={onClose} className="secondary-button px-2.5 py-1 text-xs">
+                ปิด
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex-1 overflow-y-auto p-3">
+            {items.length === 0 ? (
+              <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์ที่กำหนดไว้</div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {items.map((item) => (
+                  <div key={item.id} className="surface-muted p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <PlatformIcon platform={item.platform} />
+                          <span className="text-xs text-[var(--muted)]">
+                            {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <h4 className="mt-2 text-sm font-semibold text-slate-950">{item.title}</h4>
+                      </div>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    {item.caption_main && (
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">
+                        {item.caption_main.trim()}
+                      </p>
+                    )}
+                    <div className="mt-3">
+                      <Link href={`/content/${item.content_item_id}`} className="text-xs font-medium text-[var(--brand)]">
+                        ดูรายละเอียด →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
+  )
+}
+
+function CalendarEmptyIcon() {
+  return (
+    <svg viewBox="0 0 40 40" width="40" height="40" fill="none" className="text-slate-300">
+      <rect x="4" y="8" width="32" height="28" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 16h32" stroke="currentColor" strokeWidth="2" />
+      <path d="M13 4v8M27 4v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 24h6M22 24h6M12 30h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   )
 }
 
