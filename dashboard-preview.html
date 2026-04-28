@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniContent Dashboard Preview</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-strong: #ffffff;
+      --nav: linear-gradient(180deg, #081c3f 0%, #0b295d 58%, #0d1c3d 100%);
+      --text: #12203a;
+      --muted: #6f7d96;
+      --line: #e6ebf4;
+      --brand: #2f66ff;
+      --brand-soft: rgba(47, 102, 255, 0.12);
+      --success: #1fbf75;
+      --warning: #f7b84b;
+      --violet: #8f6bff;
+      --rose: #ff6f91;
+      --shadow: 0 30px 60px rgba(11, 25, 55, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Sarabun", "Noto Sans Thai", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(73, 119, 255, 0.18), transparent 30%),
+        radial-gradient(circle at right 15%, rgba(30, 174, 152, 0.13), transparent 24%),
+        linear-gradient(180deg, #eef3fb 0%, #f8fbff 100%);
+      padding: 24px;
+    }
+
+    .shell {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+    }
+
+    .sidebar {
+      background: var(--nav);
+      color: #f4f7ff;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: calc(100vh - 48px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px 20px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #74a7ff, #8a66ff 60%, #37d5c7);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      font-size: 0.76rem;
+      color: rgba(244, 247, 255, 0.66);
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-title {
+      padding: 0 10px;
+      font-size: 0.8rem;
+      color: rgba(244, 247, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      color: rgba(244, 247, 255, 0.9);
+      text-decoration: none;
+      font-size: 0.97rem;
+      transition: 180ms ease;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(68, 113, 255, 0.28), rgba(255, 255, 255, 0.08));
+      transform: translateX(2px);
+    }
+
+    .nav-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.95rem;
+    }
+
+    .side-footer {
+      margin-top: auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .plan-card,
+    .profile-card {
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .plan-card strong,
+    .profile-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+
+    .plan-card p,
+    .profile-card p {
+      margin: 0;
+      color: rgba(244, 247, 255, 0.74);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .progress {
+      margin-top: 12px;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      width: 68%;
+      height: 100%;
+      background: linear-gradient(90deg, #49d5bf, #5eff8f);
+      border-radius: inherit;
+    }
+
+    .main {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      border-radius: 26px;
+      padding: 18px 22px;
+      backdrop-filter: blur(18px);
+    }
+
+    .page-title h2 {
+      margin: 0;
+      font-size: 1.7rem;
+      line-height: 1.1;
+    }
+
+    .page-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .chip,
+    .button,
+    .search {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      color: var(--text);
+    }
+
+    .chip {
+      padding: 10px 14px;
+      font-size: 0.92rem;
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      min-width: 210px;
+    }
+
+    .search input {
+      border: 0;
+      outline: 0;
+      width: 100%;
+      font: inherit;
+      background: transparent;
+      color: var(--text);
+    }
+
+    .button {
+      padding: 11px 18px;
+      font: inherit;
+      cursor: pointer;
+      transition: 180ms ease;
+    }
+
+    .button.primary {
+      background: linear-gradient(135deg, #336bff, #4b91ff);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 14px 24px rgba(51, 107, 255, 0.24);
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 16px 30px rgba(27, 43, 79, 0.06);
+    }
+
+    .stat-card span {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 2rem;
+      margin-top: 8px;
+      margin-bottom: 10px;
+    }
+
+    .delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .delta.up {
+      color: #0d8a54;
+      background: rgba(31, 191, 117, 0.12);
+    }
+
+    .delta.warn {
+      color: #a56a11;
+      background: rgba(247, 184, 75, 0.16);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .calendar-card,
+    .side-panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: 28px;
+      padding: 20px;
+      box-shadow: 0 18px 38px rgba(18, 32, 58, 0.08);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 1.15rem;
+    }
+
+    .section-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .segmented {
+      display: inline-flex;
+      background: #edf2fb;
+      border-radius: 14px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .segmented button {
+      border: 0;
+      background: transparent;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font: inherit;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .segmented button.active {
+      background: #fff;
+      color: var(--brand);
+      box-shadow: 0 8px 16px rgba(17, 34, 68, 0.08);
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .filter {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .filter label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .filter strong {
+      font-size: 0.92rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .weekday,
+    .day {
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+    }
+
+    .weekday {
+      text-align: center;
+      padding: 12px 8px;
+      font-size: 0.86rem;
+      color: var(--muted);
+      background: transparent;
+      border-style: dashed;
+    }
+
+    .day {
+      min-height: 128px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .day.dimmed {
+      opacity: 0.45;
+    }
+
+    .day.focus {
+      background: linear-gradient(180deg, rgba(47, 102, 255, 0.12), rgba(255, 255, 255, 0.92));
+      border-color: rgba(47, 102, 255, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(47, 102, 255, 0.15);
+    }
+
+    .day-number {
+      font-size: 0.94rem;
+      font-weight: 700;
+    }
+
+    .event {
+      border-radius: 14px;
+      padding: 10px;
+      font-size: 0.76rem;
+      line-height: 1.35;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .event strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+    }
+
+    .event.blue { background: rgba(53, 108, 255, 0.1); }
+    .event.green { background: rgba(31, 191, 117, 0.12); }
+    .event.yellow { background: rgba(247, 184, 75, 0.15); }
+    .event.purple { background: rgba(143, 107, 255, 0.14); }
+    .event.rose { background: rgba(255, 111, 145, 0.14); }
+
+    .side-panel {
+      display: grid;
+      gap: 16px;
+    }
+
+    .upcoming-list,
+    .detail-card,
+    .channel-card {
+      background: rgba(247, 250, 255, 0.96);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .panel-title h4 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .panel-title a {
+      color: var(--brand);
+      text-decoration: none;
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+
+    .post-item {
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr);
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .post-item:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .thumb {
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2954d7, #67a6ff);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px;
+      min-height: 56px;
+    }
+
+    .post-item strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .post-item small,
+    .detail-list span,
+    .mini-note {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .status {
+      display: inline-flex;
+      margin-top: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .status.scheduled { background: rgba(47, 102, 255, 0.12); color: var(--brand); }
+    .status.review { background: rgba(247, 184, 75, 0.18); color: #a56a11; }
+    .status.published { background: rgba(31, 191, 117, 0.12); color: #0d8a54; }
+
+    .detail-card strong {
+      font-size: 1.02rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .detail-list div {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px dashed var(--line);
+      padding-bottom: 10px;
+    }
+
+    .detail-list div:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .channel-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .channel-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bar {
+      width: 100px;
+      height: 8px;
+      border-radius: 999px;
+      background: #e8eef8;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #3a73ff, #5ac9ff);
+    }
+
+    @media (max-width: 1240px) {
+      .stats,
+      .filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 14px;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        min-height: auto;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .stats,
+      .filters,
+      .calendar-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .weekday {
+        display: none;
+      }
+
+      .day {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <h1>OmniContent AI</h1>
+          <p>Content Operating System</p>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Main</div>
+        <a class="nav-item" href="#"><span class="nav-icon">⌂</span>ภาพรวม</a>
+        <a class="nav-item active" href="#"><span class="nav-icon">▦</span>ปฏิทินคอนเทนต์</a>
+        <a class="nav-item" href="#"><span class="nav-icon">✎</span>คิวโพสต์</a>
+        <a class="nav-item" href="#"><span class="nav-icon">☰</span>แบบร่าง</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Workspace</div>
+        <a class="nav-item" href="#"><span class="nav-icon">⚙</span>แคมเปญ</a>
+        <a class="nav-item" href="#"><span class="nav-icon">◌</span>ช่องทาง</a>
+        <a class="nav-item" href="#"><span class="nav-icon">⌁</span>AI Studio</a>
+        <a class="nav-item" href="#"><span class="nav-icon">△</span>Analytics</a>
+        <a class="nav-item" href="#"><span class="nav-icon">☷</span>รายงาน</a>
+      </div>
+
+      <div class="side-footer">
+        <div class="plan-card">
+          <strong>แพ็กเกจปัจจุบัน</strong>
+          <p>Professional<br>ใช้ไป 68% จาก 500 โพสต์/เดือน</p>
+          <div class="progress"><span></span></div>
+        </div>
+
+        <div class="profile-card">
+          <strong>OmniBrand Thailand</strong>
+          <p>Admin<br>พร้อมใช้งาน 12 ทีม</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div class="page-title">
+          <h2>ปฏิทินคอนเทนต์</h2>
+          <p>มุมมองสำหรับวางแผน จัดคิว และติดตามสถานะโพสต์ทุกช่องทางในที่เดียว</p>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="search">
+            <span>⌕</span>
+            <input type="text" value="" placeholder="ค้นหาโพสต์ แคมเปญ หรือแท็ก">
+          </div>
+          <div class="chip">พฤษภาคม 2026</div>
+          <button class="button">ส่งออก</button>
+          <button class="button primary">+ เพิ่มกิจกรรม</button>
+        </div>
+      </section>
+
+      <section class="stats">
+        <article class="stat-card">
+          <span>โพสต์ทั้งหมดเดือนนี้</span>
+          <strong>128</strong>
+          <div class="delta up">+12% จากเดือนก่อน</div>
+        </article>
+        <article class="stat-card">
+          <span>Scheduled</span>
+          <strong>46</strong>
+          <div class="delta up">พร้อมเผยแพร่ 9 แคมเปญ</div>
+        </article>
+        <article class="stat-card">
+          <span>รอตรวจทาน</span>
+          <strong>18</strong>
+          <div class="delta warn">ต้องอนุมัติภายใน 48 ชม.</div>
+        </article>
+        <article class="stat-card">
+          <span>Engagement forecast</span>
+          <strong>4.8x</strong>
+          <div class="delta up">Facebook และ TikTok เด่นสุด</div>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <article class="calendar-card">
+          <div class="section-head">
+            <div>
+              <h3>ตารางคอนเทนต์ประจำเดือน</h3>
+              <p>เลือกมุมมองที่ทีมครีเอทีฟและแอดมินใช้งานร่วมกันได้ง่าย</p>
+            </div>
+            <div class="segmented">
+              <button class="active">Calendar</button>
+              <button>Kanban</button>
+              <button>Timeline</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <div class="filter">
+              <div><label>แบรนด์</label><strong>ทั้งหมด</strong></div>
+              <span>⌄</span>
+            </div>
+            <div class="filter">
+              <div><label>ประเภท</label><strong>โพสต์โปรโมชัน</strong></div>
+              <span>⌄</span>
+            </div>
+            <div class="filter">
+              <div><label>ช่องทาง</label><strong>Facebook / IG / TikTok</strong></div>
+              <span>⌄</span>
+            </div>
+            <div class="filter">
+              <div><label>สถานะ</label><strong>ทั้งหมด</strong></div>
+              <span>⌄</span>
+            </div>
+          </div>
+
+          <div class="legend">
+            <span><i style="background:#b8c8ff"></i>Scheduled</span>
+            <span><i style="background:#b9efd1"></i>Approved</span>
+            <span><i style="background:#ffe0a8"></i>Review</span>
+            <span><i style="background:#e0d3ff"></i>Published</span>
+            <span><i style="background:#ffc6d3"></i>Campaign Push</span>
+          </div>
+
+          <div class="calendar-grid">
+            <div class="weekday">อา.</div>
+            <div class="weekday">จ.</div>
+            <div class="weekday">อ.</div>
+            <div class="weekday">พ.</div>
+            <div class="weekday">พฤ.</div>
+            <div class="weekday">ศ.</div>
+            <div class="weekday">ส.</div>
+
+            <div class="day dimmed"><div class="day-number">26</div></div>
+            <div class="day dimmed"><div class="day-number">27</div></div>
+            <div class="day dimmed"><div class="day-number">28</div></div>
+            <div class="day dimmed"><div class="day-number">29</div></div>
+            <div class="day dimmed"><div class="day-number">30</div></div>
+            <div class="day">
+              <div class="day-number">1</div>
+              <div class="event green"><strong>โปรโมชัน 5.5</strong>09:00 • Facebook</div>
+            </div>
+            <div class="day">
+              <div class="day-number">2</div>
+              <div class="event yellow"><strong>วิดีโอสั้นเปิดตัว</strong>12:00 • TikTok</div>
+            </div>
+
+            <div class="day">
+              <div class="day-number">3</div>
+              <div class="event blue"><strong>Tips รีโนเวต</strong>18:00 • Reels</div>
+            </div>
+            <div class="day">
+              <div class="day-number">4</div>
+              <div class="event green"><strong>ประกาศรับสมัคร</strong>10:00 • Facebook</div>
+            </div>
+            <div class="day">
+              <div class="day-number">5</div>
+              <div class="event blue"><strong>LinkedIn Insight</strong>11:30 • LinkedIn</div>
+            </div>
+            <div class="day">
+              <div class="day-number">6</div>
+              <div class="event purple"><strong>แคมเปญ Lucky Draw</strong>13:00 • Multi-channel</div>
+            </div>
+            <div class="day">
+              <div class="day-number">7</div>
+              <div class="event yellow"><strong>Before / After</strong>12:00 • Instagram</div>
+            </div>
+            <div class="day">
+              <div class="day-number">8</div>
+              <div class="event rose"><strong>How to จัดห้อง</strong>18:30 • TikTok</div>
+            </div>
+            <div class="day">
+              <div class="day-number">9</div>
+              <div class="event green"><strong>บทความ SEO</strong>09:00 • Blog</div>
+            </div>
+
+            <div class="day">
+              <div class="day-number">10</div>
+            </div>
+            <div class="day">
+              <div class="day-number">11</div>
+              <div class="event blue"><strong>Live teaser</strong>20:00 • Facebook</div>
+            </div>
+            <div class="day">
+              <div class="day-number">12</div>
+              <div class="event green"><strong>เคสลูกค้าจริง</strong>09:00 • Website</div>
+            </div>
+            <div class="day">
+              <div class="day-number">13</div>
+              <div class="event yellow"><strong>รีวิวสินค้า</strong>14:00 • Reels</div>
+            </div>
+            <div class="day">
+              <div class="day-number">14</div>
+              <div class="event blue"><strong>Infographic ESG</strong>10:00 • LinkedIn</div>
+            </div>
+            <div class="day">
+              <div class="day-number">15</div>
+              <div class="event green"><strong>โปรโมชันกลางเดือน</strong>10:00 • Facebook</div>
+            </div>
+            <div class="day">
+              <div class="day-number">16</div>
+              <div class="event purple"><strong>Unbox สินค้าใหม่</strong>18:00 • TikTok</div>
+            </div>
+
+            <div class="day">
+              <div class="day-number">17</div>
+            </div>
+            <div class="day">
+              <div class="day-number">18</div>
+              <div class="event rose"><strong>ยิงแอดเวฟใหม่</strong>10:00 • Meta Ads</div>
+            </div>
+            <div class="day">
+              <div class="day-number">19</div>
+            </div>
+            <div class="day">
+              <div class="day-number">20</div>
+              <div class="event blue"><strong>ประกาศกิจกรรม</strong>11:00 • Facebook</div>
+            </div>
+            <div class="day focus">
+              <div class="day-number">21</div>
+              <div class="event purple"><strong>เปิดตัวแคมเปญใหม่</strong>12:00 • Omni Lucky Draw</div>
+            </div>
+            <div class="day">
+              <div class="day-number">22</div>
+              <div class="event green"><strong>บทสัมภาษณ์ลูกค้า</strong>09:00 • YouTube</div>
+            </div>
+            <div class="day">
+              <div class="day-number">23</div>
+              <div class="event blue"><strong>โปรโมตหน้าร้าน</strong>19:00 • Facebook</div>
+            </div>
+
+            <div class="day">
+              <div class="day-number">24</div>
+            </div>
+            <div class="day">
+              <div class="day-number">25</div>
+              <div class="event rose"><strong>3 ไอเดียแต่งบ้าน</strong>18:30 • TikTok</div>
+            </div>
+            <div class="day">
+              <div class="day-number">26</div>
+            </div>
+            <div class="day">
+              <div class="day-number">27</div>
+              <div class="event blue"><strong>บทความเทรนด์ 2026</strong>10:00 • LinkedIn</div>
+            </div>
+            <div class="day">
+              <div class="day-number">28</div>
+              <div class="event yellow"><strong>โพสต์ขายท้ายเดือน</strong>12:00 • Instagram</div>
+            </div>
+            <div class="day">
+              <div class="day-number">29</div>
+              <div class="event green"><strong>สรุปผลแคมเปญ</strong>09:00 • Dashboard</div>
+            </div>
+            <div class="day">
+              <div class="day-number">30</div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="side-panel">
+          <section class="upcoming-list">
+            <div class="panel-title">
+              <h4>โพสต์ถัดไป</h4>
+              <a href="#">ดูทั้งหมด</a>
+            </div>
+
+            <div class="post-item">
+              <div class="thumb">5.5<br>SALE</div>
+              <div>
+                <strong>โปรโมชัน 5.5 ลอตสุดท้าย</strong>
+                <small>10:00 • 1 พ.ค. 2026</small>
+                <div class="status published">Published</div>
+              </div>
+            </div>
+
+            <div class="post-item">
+              <div class="thumb">TIPS</div>
+              <div>
+                <strong>How to จัดมุมทำงานในบ้าน</strong>
+                <small>18:30 • 8 พ.ค. 2026</small>
+                <div class="status scheduled">Scheduled</div>
+              </div>
+            </div>
+
+            <div class="post-item">
+              <div class="thumb">DRAW</div>
+              <div>
+                <strong>เปิดตัว Omni Lucky Draw</strong>
+                <small>12:00 • 21 พ.ค. 2026</small>
+                <div class="status review">Review</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="detail-card">
+            <div class="panel-title">
+              <h4>รายละเอียดวันที่เลือก</h4>
+              <a href="#">เปิดโพสต์</a>
+            </div>
+            <strong>เปิดตัวแคมเปญใหม่ Omni Lucky Draw</strong>
+            <div class="mini-note">โพสต์หลักของเดือนสำหรับกระตุ้น conversion พร้อมยิง ads และทำ teaser ก่อนหน้า 3 วัน</div>
+
+            <div class="detail-list">
+              <div><span>ช่องทาง</span><span>Facebook / Instagram</span></div>
+              <div><span>ผู้รับผิดชอบ</span><span>พราวภรณ์</span></div>
+              <div><span>สถานะ</span><span>Scheduled</span></div>
+              <div><span>งบโปรโมต</span><span>฿12,000</span></div>
+            </div>
+          </section>
+
+          <section class="channel-card">
+            <div class="panel-title">
+              <h4>Performance by Channel</h4>
+              <a href="#">Analytics</a>
+            </div>
+            <div class="channel-row">
+              <span>Facebook</span>
+              <div class="bar"><span style="width:84%"></span></div>
+            </div>
+            <div class="channel-row">
+              <span>Instagram</span>
+              <div class="bar"><span style="width:72%"></span></div>
+            </div>
+            <div class="channel-row">
+              <span>TikTok</span>
+              <div class="bar"><span style="width:91%"></span></div>
+            </div>
+            <div class="channel-row">
+              <span>LinkedIn</span>
+              <div class="bar"><span style="width:48%"></span></div>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
