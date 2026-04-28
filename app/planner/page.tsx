@@ -137,32 +137,33 @@ export default function PlannerPage() {
   return (
     <div className="planner-shell">
       <section className="planner-main">
-        <div className="flex h-full min-h-0 flex-col gap-4">
+        <div className="flex h-full min-h-0 flex-col gap-3">
           <section className="planner-header-card shrink-0">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-blue-50 text-[var(--brand)]">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-blue-100 bg-blue-50 text-[var(--brand)]">
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                     <rect x="3" y="5" width="18" height="16" rx="2" />
                     <path d="M16 3v4M8 3v4M3 10h18" />
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-[1.75rem] font-semibold leading-tight text-slate-950">ปฏิทินคอนเทนต์</h1>
-                  <p className="mt-1 text-sm text-[var(--muted)]">วางแผน จัดคิว และติดตามโพสต์ทุกช่องทางในมุมมองเดียว</p>
+                  <h1 className="text-[1.95rem] font-bold leading-none text-slate-950">ปฏิทินคอนเทนต์</h1>
+                  <p className="mt-2 text-sm text-[var(--muted)]">วางแผน จัดคิว และติดตามโพสต์ทุกช่องทางในมุมมองเดียว</p>
                 </div>
               </div>
 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="segmented-control">
                   {(['calendar', 'kanban', 'timeline'] as const).map((item) => (
-                    <button key={item} type="button" onClick={() => setView(item)} className="segmented-option text-sm" data-active={view === item}>
+                    <button key={item} type="button" onClick={() => setView(item)} className="segmented-option text-sm font-medium" data-active={view === item}>
                       {item === 'calendar' ? 'Calendar' : item === 'kanban' ? 'Kanban' : 'Timeline'}
                     </button>
                   ))}
                 </div>
-                <Link href="/content/new" className="primary-button px-4 py-2.5 text-center text-sm font-semibold">
-                  + เพิ่มกิจกรรม
+                <Link href="/content/new" className="primary-button inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold">
+                  <span className="text-base leading-none">+</span>
+                  เพิ่มกิจกรรม
                 </Link>
               </div>
             </div>
@@ -218,50 +219,53 @@ export default function PlannerPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBrandFilter('all')
-                      setCampaignFilter('all')
-                      setPlatformFilter('all')
-                      setStatusFilter('all')
-                      setCurrentDate(new Date())
-                      setSelectedDay(new Date().getDate())
-                    }}
-                    className="secondary-button px-3 py-2 text-sm"
-                  >
-                    รีเซ็ต
-                  </button>
-                  <button type="button" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const now = new Date()
-                      setCurrentDate(now)
-                      setSelectedDay(now.getDate())
-                    }}
-                    className="secondary-button px-3 py-2 text-sm"
-                  >
-                    วันนี้
-                  </button>
-                  <button type="button" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
-                    ›
-                  </button>
-                  <label className="input-shell relative flex min-w-[138px] items-center gap-2 px-3 py-2 text-sm text-slate-700">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                      <path d="m7 10 5 5 5-5" />
-                    </svg>
+                  <div className="planner-toolbar-group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBrandFilter('all')
+                        setCampaignFilter('all')
+                        setPlatformFilter('all')
+                        setStatusFilter('all')
+                        const now = new Date()
+                        setCurrentDate(now)
+                        setSelectedDay(now.getDate())
+                      }}
+                      className="planner-nav-button text-sm font-medium"
+                    >
+                      รีเซ็ต
+                    </button>
+                    <button type="button" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="planner-nav-button" aria-label="Previous month">
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date()
+                        setCurrentDate(now)
+                        setSelectedDay(now.getDate())
+                      }}
+                      className="planner-nav-button text-sm font-semibold"
+                    >
+                      วันนี้
+                    </button>
+                    <button type="button" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="planner-nav-button" aria-label="Next month">
+                      ›
+                    </button>
+                  </div>
+                  <label className="input-shell relative flex min-w-[138px] items-center gap-2 px-3 py-2.5 text-sm text-slate-700">
                     <select
                       value={month}
                       onChange={(event) => setCurrentDate(new Date(year, Number(event.target.value), 1))}
-                      className="w-full appearance-none bg-transparent pr-4 text-sm font-medium text-slate-700 outline-none"
+                      className="w-full appearance-none bg-transparent pr-5 text-sm font-medium text-slate-700 outline-none"
                     >
                       {MONTHS_TH.map((label, index) => (
                         <option key={label} value={index}>{label} {year + 543}</option>
                       ))}
                     </select>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="m7 10 5 5 5-5" />
+                    </svg>
                   </label>
                 </div>
               </div>
@@ -275,18 +279,18 @@ export default function PlannerPage() {
                 ))}
               </div>
 
-              <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-[18px] border border-[var(--line)] bg-white">
+              <div className="planner-pane-card mt-4 flex-1 min-h-0 overflow-hidden">
                 {view === 'calendar' ? (
                   <>
-                    <div className="grid grid-cols-7 border-b border-[var(--line)] bg-slate-50">
+                    <div className="grid grid-cols-7 border-b border-[var(--line)] bg-slate-50/80">
                       {WEEKDAYS.map((day) => (
-                        <div key={day} className="px-4 py-3 text-center text-sm font-medium text-[var(--muted)]">{day}</div>
+                        <div key={day} className="px-4 py-3 text-center text-sm font-medium text-slate-500">{day}</div>
                       ))}
                     </div>
 
                     <div className="planner-calendar-grid">
                       {Array.from({ length: firstDay }).map((_, index) => (
-                        <div key={`empty-${index}`} className="hidden border-b border-r border-[var(--line)] bg-slate-50/70 xl:block" />
+                        <div key={`empty-${index}`} className="planner-empty-cell hidden xl:block" />
                       ))}
 
                       {Array.from({ length: daysInMonth }).map((_, index) => {
@@ -300,21 +304,15 @@ export default function PlannerPage() {
                             key={day}
                             type="button"
                             onClick={() => setSelectedDay(day)}
-                            className={`flex min-h-[130px] flex-col gap-3 border-b border-r border-[var(--line)] p-3 text-left transition-colors ${
-                              isToday
-                                ? 'bg-blue-50 ring-1 ring-inset ring-blue-500'
-                                : isSelected
-                                ? 'bg-slate-50'
-                                : 'bg-white hover:bg-slate-50'
-                            }`}
+                            className={`planner-day-cell ${isSelected ? 'planner-day-cell-selected' : ''} ${isToday ? 'planner-day-cell-today' : ''}`}
                           >
-                            <span className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-slate-700'}`}>{day}</span>
+                            <span className={`planner-day-number ${isToday ? 'planner-day-number-today' : ''}`}>{day}</span>
                             <div className="flex flex-col gap-2">
                               {dayItems.slice(0, 3).map((item) => (
                                 <EventCard key={item.id} item={item} />
                               ))}
                               {dayItems.length > 3 && (
-                                <span className="text-[11px] font-medium text-[var(--muted)]">+{dayItems.length - 3} รายการ</span>
+                                <span className="pl-1 text-[11px] font-medium text-[var(--muted)]">+{dayItems.length - 3} รายการ</span>
                               )}
                             </div>
                           </button>
@@ -322,7 +320,7 @@ export default function PlannerPage() {
                       })}
 
                       {Array.from({ length: trailingDays }).map((_, index) => (
-                        <div key={`tail-${index}`} className="hidden border-b border-r border-[var(--line)] bg-slate-50/70 xl:block" />
+                        <div key={`tail-${index}`} className="planner-empty-cell hidden xl:block" />
                       ))}
                     </div>
                   </>
@@ -338,11 +336,11 @@ export default function PlannerPage() {
       </section>
 
       <aside className="planner-sidebar">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-          <section className="surface-card shrink-0 p-4">
+        <div className="flex min-h-0 flex-1 flex-col p-4">
+          <section className="planner-sidebar-section shrink-0 border-b border-[var(--line)] pb-4">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-base font-semibold text-slate-950">โพสต์ถัดไป</h3>
-              <Link href="/content" className="text-sm font-medium text-[var(--brand)]">ดูทั้งหมด</Link>
+              <h3 className="planner-section-title">โพสต์ถัดไป</h3>
+              <Link href="/content" className="planner-section-link">ดูทั้งหมด</Link>
             </div>
             {upcomingItems.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">ยังไม่มีโพสต์ที่กำลังจะมาถึง</p>
@@ -355,10 +353,10 @@ export default function PlannerPage() {
             )}
           </section>
 
-          <section className="surface-card flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+          <section className="planner-sidebar-section flex min-h-0 flex-1 flex-col overflow-hidden pt-4">
             <div className="mb-4 shrink-0">
-              <h3 className="text-base font-semibold text-slate-950">รายละเอียดวันที่เลือก {selectedLabel}</h3>
-              <p className="mt-1 text-sm text-[var(--muted)]">เลือกวันบนปฏิทินเพื่ออัปเดตรายการฝั่งขวา</p>
+              <h3 className="planner-section-title">รายละเอียดวันที่เลือก {selectedLabel}</h3>
+              <p className="mt-1 text-sm text-[var(--muted)]">เลือกรายการในปฏิทินเพื่อดูรายละเอียดโพสต์ของวันนั้น</p>
             </div>
 
             {selectedDayItems.length === 0 ? (
@@ -402,7 +400,7 @@ function FilterSelect({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-1 w-full appearance-none bg-transparent pr-5 text-sm font-medium text-slate-800 outline-none"
+          className="mt-1 w-full appearance-none bg-transparent pr-5 text-sm font-semibold text-slate-800 outline-none"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -418,33 +416,33 @@ function FilterSelect({
 
 function EventCard({ item }: { item: CalendarItem }) {
   return (
-    <div className="rounded-[12px] border border-[var(--line)] bg-white px-2.5 py-2">
+    <div className={`planner-event ${statusEventClass[item.status]}`}>
       <div className="flex items-center gap-2">
         <PlatformIcon platform={item.platform} />
-        <span className="text-[10px] font-medium text-[var(--muted)]">
+        <span className="text-[10px] font-semibold text-slate-500">
           {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
-      <p className="mt-1 truncate text-[11px] font-semibold text-slate-900">{item.title}</p>
+      <p className="mt-1 truncate text-[11px] font-semibold text-slate-800">{item.title}</p>
     </div>
   )
 }
 
 function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compact?: boolean }) {
   return (
-    <div className="surface-muted p-3 transition-colors hover:bg-white">
+    <div className={`planner-list-card ${compact ? 'p-2.5' : 'p-3'}`}>
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] bg-white">
+        <div className={`planner-thumb ${compact ? 'planner-mini-thumb' : ''} planner-thumb-soft`}>
           <PlatformIcon platform={item.platform} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+            <p className="line-clamp-1 text-[13px] font-semibold text-slate-900">{item.title}</p>
             <StatusBadge status={item.status} />
           </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
+          <p className="mt-1 text-[11px] text-[var(--muted)]">
             {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-            {' · '}
+            {' • '}
             {new Date(item.scheduled_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
           {!compact && item.caption_main && (
@@ -458,15 +456,15 @@ function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compac
 
 function DayDetailCard({ item }: { item: CalendarItem }) {
   return (
-    <div className="surface-muted p-3">
+    <div className="planner-list-card p-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] bg-white">
+        <div className="planner-thumb">
           <PlatformIcon platform={item.platform} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+              <p className="line-clamp-2 text-sm font-semibold text-slate-900">{item.title}</p>
               <p className="mt-1 text-xs text-[var(--muted)]">
                 {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
               </p>
@@ -474,15 +472,15 @@ function DayDetailCard({ item }: { item: CalendarItem }) {
             <StatusBadge status={item.status} />
           </div>
 
-          <dl className="mt-3 grid grid-cols-[88px_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs">
-            <dt className="text-[var(--muted)]">แคมเปญ</dt>
-            <dd className="truncate text-slate-700">{item.campaign_name ?? 'ไม่ระบุ'}</dd>
-            <dt className="text-[var(--muted)]">ช่องทาง</dt>
-            <dd className="uppercase text-slate-700">{item.platform}</dd>
-            <dt className="text-[var(--muted)]">สถานะ</dt>
-            <dd className="text-slate-700">{item.status}</dd>
-            <dt className="text-[var(--muted)]">ผู้รับผิดชอบ</dt>
-            <dd className="text-slate-700">ไม่ระบุ</dd>
+          <dl className="planner-meta-grid mt-3">
+            <dt className="planner-meta-label">แคมเปญ</dt>
+            <dd className="planner-meta-value truncate">{item.campaign_name ?? 'ไม่ระบุ'}</dd>
+            <dt className="planner-meta-label">ช่องทาง</dt>
+            <dd className="planner-meta-value uppercase">{item.platform}</dd>
+            <dt className="planner-meta-label">สถานะ</dt>
+            <dd className="planner-meta-value">{statusText[item.status]}</dd>
+            <dt className="planner-meta-label">ผู้รับผิดชอบ</dt>
+            <dd className="planner-meta-value">ไม่ระบุ</dd>
           </dl>
 
           <Link href={`/content/${item.content_item_id}`} className="primary-button mt-4 inline-flex px-3 py-2 text-xs font-semibold">
@@ -526,7 +524,7 @@ function FilterIcon({ icon }: { icon: 'brand' | 'campaign' | 'platform' | 'statu
 
 function KanbanView({ items, loading }: { items: CalendarItem[]; loading: boolean }) {
   return (
-    <div className="grid h-full gap-4 overflow-auto xl:grid-cols-5">
+    <div className="grid h-full gap-4 overflow-auto bg-slate-50/60 p-4 xl:grid-cols-5">
       {STATUS_ORDER.map((status) => {
         const statusItems = items.filter((item) => item.status === status)
         return (
@@ -592,7 +590,7 @@ function TimelineView({
   const todayDay = today.getFullYear() === year && today.getMonth() === month ? today.getDate() : -1
 
   return (
-    <div className="table-shell h-full">
+    <div className="table-shell h-full bg-slate-50/60 p-4">
       <section className="surface-card h-full p-5 md:p-6">
         {loading ? (
           <p className="py-10 text-center text-[var(--muted)]">กำลังโหลด...</p>
@@ -646,4 +644,22 @@ function TimelineView({
       </section>
     </div>
   )
+}
+
+const statusEventClass: Record<ContentStatus, string> = {
+  draft: 'planner-event-draft',
+  review: 'planner-event-review',
+  approved: 'planner-event-approved',
+  scheduled: 'planner-event-scheduled',
+  published: 'planner-event-published',
+  archived: 'planner-event-draft',
+}
+
+const statusText: Record<ContentStatus, string> = {
+  draft: 'ร่าง',
+  review: 'รอตรวจ',
+  approved: 'อนุมัติแล้ว',
+  scheduled: 'กำหนดแล้ว',
+  published: 'เผยแพร่แล้ว',
+  archived: 'เก็บถาวร',
 }

@@ -13,41 +13,53 @@ const workspaceNav = [
   { href: '/analytics', icon: 'chart', label: 'Analytics' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname()
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <aside className="sidebar-shell">
-      <div className="sidebar-brand">
-        <div className="sidebar-brand-mark">
-          <span className="text-sm font-semibold tracking-[0.12em] text-white">CMP</span>
+    <aside className={`sidebar-shell ${collapsed ? 'sidebar-shell-collapsed' : ''}`}>
+      <div className="sidebar-topbar">
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-mark">
+            <span className="text-sm font-semibold tracking-[0.12em] text-white">CMP</span>
+          </div>
+          <div className={`sidebar-copy ${collapsed ? 'sidebar-copy-hidden' : ''}`}>
+            <p className="text-[1.05rem] font-semibold leading-tight">CMP</p>
+            <p className="mt-0.5 text-xs text-slate-400">Evergreen Farming</p>
+          </div>
         </div>
-        <div>
-          <p className="text-[1.05rem] font-semibold leading-tight">CMP</p>
-          <p className="mt-0.5 text-xs text-slate-400">Evergreen Farming</p>
-        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="sidebar-toggle"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-pressed={collapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <ToggleIcon collapsed={collapsed} />
+        </button>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <p className="sidebar-section-title">Main</p>
+        <p className={`sidebar-section-title ${collapsed ? 'sidebar-section-title-hidden' : ''}`}>Main</p>
         {mainNav.map((item) => (
-          <NavItem key={item.href} {...item} active={isActive(item.href)} />
+          <NavItem key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
         ))}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <p className="sidebar-section-title">Workspace</p>
+        <p className={`sidebar-section-title ${collapsed ? 'sidebar-section-title-hidden' : ''}`}>Workspace</p>
         {workspaceNav.map((item) => (
-          <NavItem key={item.href} {...item} active={isActive(item.href)} />
+          <NavItem key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
         ))}
       </div>
 
-      <div className="sidebar-footer">
-        <p className="mb-1 text-sm font-semibold">Evergreen Farming</p>
-        <p className="text-xs leading-relaxed text-slate-400">
+      <div className={`sidebar-footer ${collapsed ? 'sidebar-footer-collapsed' : ''}`}>
+        <p className={`mb-1 text-sm font-semibold ${collapsed ? 'sidebar-copy-hidden' : ''}`}>Evergreen Farming</p>
+        <p className={`text-xs leading-relaxed text-slate-400 ${collapsed ? 'sidebar-copy-hidden' : ''}`}>
           Content Management Platform
         </p>
       </div>
@@ -55,14 +67,24 @@ export default function Sidebar() {
   )
 }
 
-function NavItem({ href, icon, label, active }: { href: string; icon: string; label: string; active: boolean }) {
+function NavItem({ href, icon, label, active, collapsed }: { href: string; icon: string; label: string; active: boolean; collapsed: boolean }) {
   return (
-    <Link href={href} className={`sidebar-link ${active ? 'sidebar-link-active' : ''}`}>
+    <Link href={href} className={`sidebar-link ${active ? 'sidebar-link-active' : ''} ${collapsed ? 'sidebar-link-collapsed' : ''}`} title={label}>
       <span className="sidebar-icon">
         <NavIcon icon={icon} />
       </span>
-      {label}
+      <span className={`sidebar-copy ${collapsed ? 'sidebar-copy-hidden' : ''}`}>{label}</span>
     </Link>
+  )
+}
+
+function ToggleIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg viewBox="0 0 20 20" className="nav-svg" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" />
+      <path d={collapsed ? 'M8 6.5v7' : 'M12 6.5v7'} />
+      <path d={collapsed ? 'm12 10-2-2m2 2-2 2' : 'm8 10 2-2m-2 2 2 2'} />
+    </svg>
   )
 }
 
