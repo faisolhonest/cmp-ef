@@ -5,12 +5,12 @@ import { supabase } from '@/lib/supabase'
 import type { Campaign, Platform, ContentType, PostMode } from '@/lib/types'
 
 const PLATFORMS: { value: Platform; label: string }[] = [
-  { value: 'fb', label: '🔵 Facebook' },
-  { value: 'ig', label: '🟣 Instagram' },
-  { value: 'tiktok', label: '⚫ TikTok' },
-  { value: 'youtube', label: '🔴 YouTube' },
-  { value: 'shopee', label: '🟠 Shopee' },
-  { value: 'other', label: '⚪ อื่นๆ' },
+  { value: 'fb', label: 'Facebook' },
+  { value: 'ig', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'shopee', label: 'Shopee' },
+  { value: 'other', label: 'อื่นๆ' },
 ]
 
 const AUTO_PLATFORMS: Platform[] = ['fb', 'ig']
@@ -43,10 +43,7 @@ export default function NewContentPage() {
   }, [])
 
   function addSchedule() {
-    setSchedules((prev) => [
-      ...prev,
-      { platform: 'fb', scheduled_at: '', post_mode: 'auto' },
-    ])
+    setSchedules((prev) => [...prev, { platform: 'fb', scheduled_at: '', post_mode: 'auto' }])
   }
 
   function removeSchedule(i: number) {
@@ -111,50 +108,22 @@ export default function NewContentPage() {
 
   return (
     <>
-      {/* Topbar */}
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-      >
-        <h2 className="text-[1.5rem] font-bold leading-tight">สร้างคอนเทนต์ใหม่</h2>
-        <p className="text-[var(--muted)] text-sm mt-1">เพิ่มคอนเทนต์และกำหนดเวลาโพสต์</p>
+      <section className="page-header">
+        <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">สร้างคอนเทนต์ใหม่</h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">เพิ่มคอนเทนต์และกำหนดเวลาโพสต์</p>
       </section>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* Main form */}
-        <section
-          style={{
-            background: 'var(--panel)',
-            border: '1px solid rgba(255,255,255,0.78)',
-            borderRadius: '22px',
-            padding: '24px',
-            boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-          }}
-        >
-          <h3 className="font-semibold mb-5">ข้อมูลคอนเทนต์</h3>
+        <section className="surface-card p-5 md:p-6">
+          <h3 className="mb-5 text-base font-semibold text-slate-950">ข้อมูลคอนเทนต์</h3>
           <div className="flex flex-col gap-4">
             <Field label="ชื่อคอนเทนต์ *">
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="เช่น โปรโมชัน 5.5 ลอตสุดท้าย"
-                className="w-full px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm focus:border-[var(--brand)] transition-colors"
-              />
+              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="เช่น โปรโมชั่น 5.5 ลอตสุดท้าย" className="input-shell w-full px-4 py-2.5 text-sm outline-none" />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <Field label="ประเภทคอนเทนต์">
-                <select
-                  value={form.content_type}
-                  onChange={(e) => setForm({ ...form, content_type: e.target.value as ContentType })}
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm"
-                >
+                <select value={form.content_type} onChange={(e) => setForm({ ...form, content_type: e.target.value as ContentType })} className="input-shell w-full px-4 py-2.5 text-sm outline-none">
                   <option value="post">โพสต์</option>
                   <option value="reel">Reel</option>
                   <option value="story">Story</option>
@@ -164,11 +133,7 @@ export default function NewContentPage() {
               </Field>
 
               <Field label="แคมเปญ">
-                <select
-                  value={form.campaign_id}
-                  onChange={(e) => setForm({ ...form, campaign_id: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm"
-                >
+                <select value={form.campaign_id} onChange={(e) => setForm({ ...form, campaign_id: e.target.value })} className="input-shell w-full px-4 py-2.5 text-sm outline-none">
                   <option value="">ไม่ระบุแคมเปญ</option>
                   {campaigns.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -178,44 +143,19 @@ export default function NewContentPage() {
             </div>
 
             <Field label="Caption">
-              <textarea
-                value={form.caption_main}
-                onChange={(e) => setForm({ ...form, caption_main: e.target.value })}
-                placeholder="ข้อความสำหรับโพสต์..."
-                rows={4}
-                className="w-full px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm resize-none focus:border-[var(--brand)] transition-colors"
-              />
+              <textarea value={form.caption_main} onChange={(e) => setForm({ ...form, caption_main: e.target.value })} placeholder="ข้อความสำหรับโพสต์..." rows={4} className="input-shell w-full resize-none px-4 py-2.5 text-sm outline-none" />
             </Field>
 
             <Field label="Tags (คั่นด้วยจุลภาค)">
-              <input
-                type="text"
-                value={form.tags}
-                onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                placeholder="เช่น โปรโมชัน, EF, เกษตร"
-                className="w-full px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm focus:border-[var(--brand)] transition-colors"
-              />
+              <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="เช่น โปรโมชั่น, EF, เกษตร" className="input-shell w-full px-4 py-2.5 text-sm outline-none" />
             </Field>
           </div>
         </section>
 
-        {/* Schedules */}
-        <section
-          style={{
-            background: 'var(--panel)',
-            border: '1px solid rgba(255,255,255,0.78)',
-            borderRadius: '22px',
-            padding: '24px',
-            boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-          }}
-        >
-          <div className="flex justify-between items-center mb-5">
-            <h3 className="font-semibold">กำหนดเวลาโพสต์</h3>
-            <button
-              type="button"
-              onClick={addSchedule}
-              className="text-sm text-[var(--brand)] font-semibold px-3 py-1.5 rounded-[10px] border border-[var(--brand)] hover:bg-blue-50 transition-colors"
-            >
+        <section className="surface-card p-5 md:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h3 className="text-base font-semibold text-slate-950">กำหนดเวลาโพสต์</h3>
+            <button type="button" onClick={addSchedule} className="secondary-button px-3 py-1.5 text-sm font-medium text-[var(--brand)]">
               + เพิ่มแพลตฟอร์ม
             </button>
           </div>
@@ -225,37 +165,17 @@ export default function NewContentPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {schedules.map((s, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-[14px] border border-[var(--line)] bg-white">
-                  <select
-                    value={s.platform}
-                    onChange={(e) => updateSchedule(i, { platform: e.target.value as Platform })}
-                    className="px-3 py-2 rounded-[10px] border border-[var(--line)] outline-none text-sm"
-                  >
+                <div key={i} className="surface-muted flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+                  <select value={s.platform} onChange={(e) => updateSchedule(i, { platform: e.target.value as Platform })} className="input-shell px-3 py-2 text-sm outline-none">
                     {PLATFORMS.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
                   </select>
-                  <input
-                    type="datetime-local"
-                    value={s.scheduled_at}
-                    onChange={(e) => updateSchedule(i, { scheduled_at: e.target.value })}
-                    className="px-3 py-2 rounded-[10px] border border-[var(--line)] outline-none text-sm"
-                  />
-                  <span
-                    className="text-xs px-2.5 py-1 rounded-full font-medium"
-                    style={
-                      s.post_mode === 'auto'
-                        ? { background: 'rgba(31,191,117,0.12)', color: '#0d8a54' }
-                        : { background: 'rgba(247,184,75,0.16)', color: '#a56a11' }
-                    }
-                  >
+                  <input type="datetime-local" value={s.scheduled_at} onChange={(e) => updateSchedule(i, { scheduled_at: e.target.value })} className="input-shell px-3 py-2 text-sm outline-none" />
+                  <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${s.post_mode === 'auto' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                     {s.post_mode === 'auto' ? 'Auto (n8n)' : 'Manual'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeSchedule(i)}
-                    className="ml-auto text-[var(--muted)] hover:text-red-500 transition-colors text-lg leading-none"
-                  >
+                  <button type="button" onClick={() => removeSchedule(i)} className="text-lg leading-none text-[var(--muted)] transition-colors hover:text-red-500 lg:ml-auto">
                     ×
                   </button>
                 </div>
@@ -264,25 +184,13 @@ export default function NewContentPage() {
           )}
         </section>
 
-        {error && <p className="text-red-500 text-sm px-2">{error}</p>}
+        {error && <p className="px-2 text-sm text-red-500">{error}</p>}
 
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-5 py-2.5 rounded-[14px] border border-[var(--line)] text-sm hover:bg-gray-50 transition-colors"
-          >
+          <button type="button" onClick={() => router.back()} className="secondary-button px-5 py-2.5 text-sm">
             ยกเลิก
           </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2.5 rounded-[14px] text-sm font-semibold text-white disabled:opacity-50 transition-all hover:-translate-y-px"
-            style={{
-              background: 'linear-gradient(135deg, #336bff, #4b91ff)',
-              boxShadow: '0 14px 24px rgba(51,107,255,0.24)',
-            }}
-          >
+          <button type="submit" disabled={saving} className="primary-button px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
             {saving ? 'กำลังบันทึก...' : 'บันทึกคอนเทนต์'}
           </button>
         </div>

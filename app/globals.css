@@ -3,25 +3,307 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f3f6fb;
-  --brand: #2f66ff;
-  --brand-soft: rgba(47, 102, 255, 0.12);
-  --success: #1fbf75;
-  --warning: #f7b84b;
-  --violet: #8f6bff;
-  --text: #12203a;
-  --muted: #6f7d96;
-  --line: #e6ebf4;
-  --panel: rgba(255, 255, 255, 0.92);
-  --shadow: 0 30px 60px rgba(11, 25, 55, 0.12);
+  --bg: #f5f7fb;
+  --sidebar: #0f172a;
+  --sidebar-soft: #162033;
+  --brand: #2563eb;
+  --brand-soft: #dbeafe;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --violet: #7c3aed;
+  --violet-soft: #ede9fe;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #d8e1ec;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --panel-muted: #f1f5f9;
+  --radius-lg: 16px;
+  --radius-md: 14px;
+  --radius-sm: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
-  font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', sans-serif;
+  margin: 0;
+  font-family: 'Sarabun', 'Noto Sans Thai', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(73, 119, 255, 0.18), transparent 30%),
-    radial-gradient(circle at right 15%, rgba(30, 174, 152, 0.13), transparent 24%),
-    linear-gradient(180deg, #eef3fb 0%, #f8fbff 100%);
+  background: var(--bg);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+.app-shell {
+  max-width: 1480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  overflow: hidden;
+  background: #fbfcfe;
+}
+
+.app-body {
+  padding: 16px;
+}
+
+.main-panel {
+  min-height: calc(100vh - 48px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sidebar-shell {
+  min-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  background: var(--sidebar);
+  color: #f1f5f9;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-brand-mark {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-section-title {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.sidebar-link-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sidebar-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #334155;
+}
+
+.icon-svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.nav-svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.surface-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.surface-muted {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.page-header {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 24px;
+}
+
+.input-shell {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.primary-button {
+  background: var(--text);
+  color: #fff;
+  border: 1px solid var(--text);
+  border-radius: var(--radius-sm);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.primary-button:hover {
+  background: #1e293b;
+  border-color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.secondary-button:hover {
+  background: var(--panel-soft);
+}
+
+.subtle-button {
+  background: var(--panel-soft);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.subtle-button:hover {
+  background: #fff;
+  color: var(--text);
+}
+
+.segmented-control {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+}
+
+.segmented-option {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.segmented-option[data-active='true'] {
+  background: #fff;
+  color: var(--text);
+}
+
+.table-shell {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .main-panel {
+    min-height: auto;
+  }
+
+  .sidebar-shell {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-body {
+    padding: 12px;
+  }
+
+  .main-panel {
+    padding: 16px;
+  }
+
+  .page-header {
+    padding: 18px;
+  }
 }

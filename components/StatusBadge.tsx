@@ -1,12 +1,12 @@
 import type { ContentStatus } from '@/lib/types'
 
 const styles: Record<ContentStatus, string> = {
-  draft: 'bg-gray-100 text-gray-500',
-  review: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-blue-100 text-blue-700',
-  scheduled: 'bg-purple-100 text-purple-700',
-  published: 'bg-green-100 text-green-700',
-  archived: 'bg-gray-100 text-gray-400',
+  draft: 'bg-slate-200 text-slate-700',
+  review: 'bg-yellow-200 text-yellow-900',
+  approved: 'bg-blue-200 text-blue-900',
+  scheduled: 'bg-purple-200 text-purple-900',
+  published: 'bg-green-200 text-green-900',
+  archived: 'bg-slate-200 text-slate-600',
 }
 
 const labels: Record<ContentStatus, string> = {
@@ -20,7 +20,7 @@ const labels: Record<ContentStatus, string> = {
 
 export default function StatusBadge({ status }: { status: ContentStatus }) {
   return (
-    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${styles[status]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tracking-[0.01em] ${styles[status]}`}>
       {labels[status]}
     </span>
   )

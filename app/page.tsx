@@ -40,14 +40,12 @@ export default function DashboardPage() {
           .order('scheduled_at'),
       ])
 
-      // Count by status
       const counts = {} as StatCounts
       for (const item of contentData ?? []) {
         counts[item.status as ContentStatus] = (counts[item.status as ContentStatus] ?? 0) + 1
       }
       setStats(counts)
 
-      // Split today vs rest of week
       const today: UpcomingItem[] = []
       const week: UpcomingItem[] = []
       for (const s of schedulesData ?? []) {
@@ -71,55 +69,46 @@ export default function DashboardPage() {
   }, [])
 
   const statCards = [
-    { label: 'ร่าง', key: 'draft' as ContentStatus, color: '#6f7d96' },
-    { label: 'อนุมัติแล้ว', key: 'approved' as ContentStatus, color: '#2f66ff' },
-    { label: 'กำหนดแล้ว', key: 'scheduled' as ContentStatus, color: '#8f6bff' },
-    { label: 'เผยแพร่แล้ว', key: 'published' as ContentStatus, color: '#1fbf75' },
+    { label: 'ร่าง', key: 'draft' as ContentStatus, tone: 'text-slate-700' },
+    { label: 'อนุมัติแล้ว', key: 'approved' as ContentStatus, tone: 'text-blue-600' },
+    { label: 'กำหนดแล้ว', key: 'scheduled' as ContentStatus, tone: 'text-violet-600' },
+    { label: 'เผยแพร่แล้ว', key: 'published' as ContentStatus, tone: 'text-emerald-600' },
   ]
 
   return (
     <>
-      {/* Topbar */}
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-      >
-        <h2 className="text-[1.5rem] font-bold leading-tight">ภาพรวม</h2>
-        <p className="text-[var(--muted)] text-sm mt-1">
-          {new Date().toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+      <section className="page-header">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">ภาพรวม</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {new Date().toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--muted)]">
+              Evergreen Farming CMP
+            </div>
+            <Link href="/content/new" className="primary-button px-4 py-2.5 text-sm font-semibold">
+              + Create Post
+            </Link>
+          </div>
+        </div>
       </section>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        {statCards.map(({ label, key, color }) => (
-          <article
-            key={key}
-            style={{
-              background: 'var(--panel)',
-              border: '1px solid rgba(255,255,255,0.78)',
-              borderRadius: '22px',
-              padding: '18px',
-              boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-            }}
-          >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statCards.map(({ label, key, tone }) => (
+          <article key={key} className="surface-card p-5">
             <span className="text-sm text-[var(--muted)]">{label}</span>
-            <strong className="block text-[2rem] mt-2" style={{ color }}>
+            <strong className={`mt-3 block text-[2rem] font-semibold ${tone}`}>
               {loading ? '—' : (stats?.[key] ?? 0)}
             </strong>
           </article>
         ))}
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        {/* Today */}
+      <div className="grid gap-4 xl:grid-cols-2">
         <ScheduleList title="โพสต์วันนี้" items={todayItems} loading={loading} emptyText="ไม่มีโพสต์วันนี้" />
-        {/* This week */}
         <ScheduleList title="สัปดาห์นี้" items={weekItems} loading={loading} emptyText="ไม่มีโพสต์สัปดาห์นี้" />
       </div>
     </>
@@ -138,38 +127,30 @@ function ScheduleList({
   emptyText: string
 }) {
   return (
-    <section
-      style={{
-        background: 'var(--panel)',
-        border: '1px solid rgba(255,255,255,0.78)',
-        borderRadius: '22px',
-        padding: '20px',
-        boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-      }}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold">{title}</h3>
-        <Link href="/planner" className="text-xs text-[var(--brand)] font-semibold">
+    <section className="surface-card p-5 md:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+        <Link href="/planner" className="text-sm font-medium text-[var(--brand)]">
           ดูทั้งหมด →
         </Link>
       </div>
       {loading ? (
-        <p className="text-[var(--muted)] text-sm">กำลังโหลด...</p>
+        <p className="text-sm text-[var(--muted)]">กำลังโหลด...</p>
       ) : items.length === 0 ? (
-        <p className="text-[var(--muted)] text-sm">{emptyText}</p>
+        <p className="text-sm text-[var(--muted)]">{emptyText}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
             <Link
               key={item.id + item.scheduled_at}
               href={`/content/${item.id}`}
-              className="flex items-center justify-between gap-3 p-3 rounded-[14px] border border-[var(--line)] hover:bg-blue-50/40 transition-colors"
+              className="surface-muted flex items-center justify-between gap-4 p-4 transition-colors hover:bg-white"
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex min-w-0 items-center gap-3">
                 <PlatformIcon platform={item.platform as any} />
-                <span className="text-sm font-medium truncate">{item.title}</span>
+                <span className="truncate text-sm font-medium text-slate-900">{item.title}</span>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex flex-shrink-0 items-center gap-3">
                 <span className="text-xs text-[var(--muted)]">
                   {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                 </span>

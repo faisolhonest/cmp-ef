@@ -15,7 +15,6 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 }
 
 const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published', 'archived']
-const ALL_PLATFORMS: Platform[] = ['fb', 'ig', 'tiktok', 'youtube', 'shopee', 'other']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
 
 type ContentWithSchedulePlatforms = ContentItem & { platforms: Platform[] }
@@ -73,51 +72,31 @@ export default function ContentPage() {
 
   return (
     <>
-      {/* Topbar */}
-      <section
-        className="flex justify-between items-center gap-4 flex-wrap"
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-      >
-        <div>
-          <h2 className="text-[1.5rem] font-bold leading-tight">คลังคอนเทนต์</h2>
-          <p className="text-[var(--muted)] text-sm mt-1">รวมทุก content ที่วางแผนและเผยแพร่แล้ว</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Search */}
-          <div
-            className="flex items-center gap-2 px-3.5 py-2.5 min-w-[220px]"
-            style={{ border: '1px solid var(--line)', borderRadius: '14px', background: 'white' }}
-          >
-            <span className="text-[var(--muted)]">⌕</span>
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อหรือ caption..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border-0 outline-none w-full text-sm bg-transparent"
-            />
+      <section className="page-header">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">คลังคอนเทนต์</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">รวมทุก content ที่วางแผนและเผยแพร่แล้ว</p>
           </div>
-          <Link
-            href="/content/new"
-            className="px-4 py-2.5 rounded-[14px] text-sm font-semibold text-white transition-all hover:-translate-y-px"
-            style={{
-              background: 'linear-gradient(135deg, #336bff, #4b91ff)',
-              boxShadow: '0 14px 24px rgba(51,107,255,0.24)',
-            }}
-          >
-            + สร้างคอนเทนต์
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="input-shell flex min-w-[240px] items-center gap-2 px-3.5 py-2.5">
+              <SearchIcon />
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อหรือ caption..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border-0 bg-transparent text-sm outline-none"
+              />
+            </div>
+            <Link href="/content/new" className="primary-button px-4 py-2.5 text-center text-sm font-semibold">
+              + สร้างคอนเทนต์
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex flex-wrap gap-3">
         <Select
           value={filterStatus}
           onChange={(v) => setFilterStatus(v as ContentStatus | '')}
@@ -133,11 +112,11 @@ export default function ContentPage() {
           label="แพลตฟอร์ม"
           options={[
             { value: '', label: 'ทุกแพลตฟอร์ม' },
-            { value: 'fb', label: '🔵 Facebook' },
-            { value: 'ig', label: '🟣 Instagram' },
-            { value: 'tiktok', label: '⚫ TikTok' },
-            { value: 'youtube', label: '🔴 YouTube' },
-            { value: 'shopee', label: '🟠 Shopee' },
+            { value: 'fb', label: 'Facebook' },
+            { value: 'ig', label: 'Instagram' },
+            { value: 'tiktok', label: 'TikTok' },
+            { value: 'youtube', label: 'YouTube' },
+            { value: 'shopee', label: 'Shopee' },
           ]}
         />
         <Select
@@ -167,82 +146,84 @@ export default function ContentPage() {
               setFilterType('')
               setSearch('')
             }}
-            className="px-3.5 py-2 text-sm text-[var(--muted)] rounded-[12px] border border-[var(--line)] bg-white hover:bg-gray-50 transition-colors"
+            className="subtle-button px-3.5 py-2 text-sm"
           >
             ล้างตัวกรอง
           </button>
         )}
       </div>
 
-      {/* Table */}
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.78)',
-          borderRadius: '22px',
-          padding: '20px',
-          boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-        }}
-      >
+      <section className="surface-card p-5 md:p-6">
         {loading ? (
-          <div className="text-center py-16 text-[var(--muted)]">กำลังโหลด...</div>
+          <div className="py-16 text-center text-[var(--muted)]">กำลังโหลด...</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-[var(--muted)]">
+          <div className="py-16 text-center text-[var(--muted)]">
             ไม่พบคอนเทนต์ที่ตรงกับเงื่อนไข
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--line)]">
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">ชื่อ</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">ประเภท</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">แพลตฟอร์ม</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">สถานะ</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">วันที่สร้าง</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b border-[var(--line)] last:border-0 hover:bg-blue-50/40 transition-colors"
-                >
-                  <td className="py-3 pr-4">
-                    <Link href={`/content/${item.id}`} className="font-medium hover:text-[var(--brand)] transition-colors">
-                      {item.title}
-                    </Link>
-                    {item.caption_main && (
-                      <p className="text-[var(--muted)] text-xs mt-0.5 truncate max-w-[280px]">
-                        {item.caption_main}
-                      </p>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-[var(--muted)]">
-                    {CONTENT_TYPE_LABELS[item.content_type] ?? item.content_type}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <div className="flex gap-1">
-                      {item.platforms.length > 0
-                        ? item.platforms.map((p) => <PlatformIcon key={p} platform={p} />)
-                        : <span className="text-[var(--muted)]">—</span>}
-                    </div>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <StatusBadge status={item.status} />
-                  </td>
-                  <td className="py-3 text-[var(--muted)]">
-                    {new Date(item.created_at).toLocaleDateString('th-TH', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: '2-digit',
-                    })}
-                  </td>
+          <div className="table-shell">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--line)]">
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">ชื่อ</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">ประเภท</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">แพลตฟอร์ม</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">สถานะ</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">วันที่สร้าง</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((item, index) => (
+                  <tr key={item.id} className={`group border-b border-[var(--line)] last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'} hover:bg-blue-50/80`}>
+                    <td className="py-4 pr-4">
+                      <Link href={`/content/${item.id}`} className="font-medium text-slate-900 transition-colors hover:text-[var(--brand)]">
+                        {item.title}
+                      </Link>
+                      {item.caption_main && (
+                        <p className="mt-1 max-w-[320px] truncate text-xs text-[var(--muted)]">
+                          {item.caption_main}
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-4 pr-4 text-[var(--muted)]">
+                      {CONTENT_TYPE_LABELS[item.content_type] ?? item.content_type}
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="flex gap-2">
+                        {item.platforms.length > 0
+                          ? item.platforms.map((p) => <PlatformIcon key={p} platform={p} />)
+                          : <span className="text-[var(--muted)]">—</span>}
+                      </div>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="py-4 text-[var(--muted)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>
+                          {new Date(item.created_at).toLocaleDateString('th-TH', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: '2-digit',
+                          })}
+                        </span>
+                        <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button type="button" className="rounded-[10px] border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700">
+                            Edit
+                          </button>
+                          <button type="button" className="rounded-[10px] border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-        <p className="text-xs text-[var(--muted)] mt-4">
+        <p className="mt-4 text-xs text-[var(--muted)]">
           {filtered.length} รายการ{filtered.length !== items.length && ` (จากทั้งหมด ${items.length})`}
         </p>
       </section>
@@ -262,15 +243,12 @@ function Select({
   options: { value: string; label: string }[]
 }) {
   return (
-    <div
-      className="flex items-center gap-2 px-3.5 py-2"
-      style={{ border: '1px solid var(--line)', borderRadius: '14px', background: 'white' }}
-    >
+    <div className="input-shell flex items-center gap-2 px-3.5 py-2">
       <span className="text-xs text-[var(--muted)]">{label}:</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border-0 outline-none text-sm bg-transparent text-[var(--text)] cursor-pointer"
+        className="cursor-pointer border-0 bg-transparent text-sm text-[var(--text)] outline-none"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -279,5 +257,14 @@ function Select({
         ))}
       </select>
     </div>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </svg>
   )
 }

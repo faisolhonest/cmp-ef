@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     async function load() {
-      let query = supabase
+      const { data } = await supabase
         .from('cmp_post_analytics')
         .select(`
           id, reach, likes, comments, shares, fetched_at,
@@ -33,8 +33,6 @@ export default function AnalyticsPage() {
             content_item:cmp_content_items(title))
         `)
         .order('fetched_at', { ascending: false })
-
-      const { data } = await query
 
       setRows(
         (data ?? []).map((a: any) => ({
@@ -73,122 +71,82 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-        className="flex justify-between items-center gap-4 flex-wrap"
-      >
-        <div>
-          <h2 className="text-[1.5rem] font-bold leading-tight">Analytics</h2>
-          <p className="text-[var(--muted)] text-sm mt-1">ผลลัพธ์ของโพสต์ที่เผยแพร่แล้ว</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            value={filterPlatform}
-            onChange={(e) => setFilterPlatform(e.target.value as Platform | '')}
-            className="px-3.5 py-2 rounded-[12px] border border-[var(--line)] outline-none text-sm bg-white"
-          >
-            <option value="">ทุกแพลตฟอร์ม</option>
-            <option value="fb">🔵 Facebook</option>
-            <option value="ig">🟣 Instagram</option>
-            <option value="tiktok">⚫ TikTok</option>
-            <option value="youtube">🔴 YouTube</option>
-          </select>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3.5 py-2 rounded-[12px] border border-[var(--line)] outline-none text-sm bg-white"
-          />
-          <span className="text-[var(--muted)] text-sm">ถึง</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="px-3.5 py-2 rounded-[12px] border border-[var(--line)] outline-none text-sm bg-white"
-          />
+      <section className="page-header">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">Analytics</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">ผลลัพธ์ของโพสต์ที่เผยแพร่แล้ว</p>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+            <select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value as Platform | '')} className="input-shell px-3.5 py-2 text-sm outline-none">
+              <option value="">ทุกแพลตฟอร์ม</option>
+              <option value="fb">Facebook</option>
+              <option value="ig">Instagram</option>
+              <option value="tiktok">TikTok</option>
+              <option value="youtube">YouTube</option>
+            </select>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-shell px-3.5 py-2 text-sm outline-none" />
+            <span className="text-sm text-[var(--muted)]">ถึง</span>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-shell px-3.5 py-2 text-sm outline-none" />
+          </div>
         </div>
       </section>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'Reach รวม', value: totals.reach, color: '#2f66ff' },
-          { label: 'Likes รวม', value: totals.likes, color: '#1fbf75' },
-          { label: 'Comments รวม', value: totals.comments, color: '#f7b84b' },
-          { label: 'Shares รวม', value: totals.shares, color: '#8f6bff' },
-        ].map(({ label, value, color }) => (
-          <article
-            key={label}
-            style={{
-              background: 'var(--panel)',
-              border: '1px solid rgba(255,255,255,0.78)',
-              borderRadius: '22px',
-              padding: '18px',
-              boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-            }}
-          >
+          { label: 'Reach รวม', value: totals.reach, tone: 'text-blue-600' },
+          { label: 'Likes รวม', value: totals.likes, tone: 'text-emerald-600' },
+          { label: 'Comments รวม', value: totals.comments, tone: 'text-amber-600' },
+          { label: 'Shares รวม', value: totals.shares, tone: 'text-violet-600' },
+        ].map(({ label, value, tone }) => (
+          <article key={label} className="surface-card p-5">
             <span className="text-sm text-[var(--muted)]">{label}</span>
-            <strong className="block text-[1.8rem] mt-2" style={{ color }}>
-              {value.toLocaleString()}
-            </strong>
-            <span className="text-xs text-[var(--muted)]">{filtered.length} โพสต์</span>
+            <strong className={`mt-3 block text-[1.9rem] font-semibold ${tone}`}>{value.toLocaleString()}</strong>
+            <span className="mt-1 block text-xs text-[var(--muted)]">{filtered.length} โพสต์</span>
           </article>
         ))}
       </div>
 
-      {/* Table */}
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.78)',
-          borderRadius: '22px',
-          padding: '20px',
-          boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-        }}
-      >
+      <section className="surface-card p-5 md:p-6">
         {loading ? (
-          <p className="text-center py-12 text-[var(--muted)]">กำลังโหลด...</p>
+          <p className="py-12 text-center text-[var(--muted)]">กำลังโหลด...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-center py-12 text-[var(--muted)]">ไม่พบข้อมูล Analytics</p>
+          <p className="py-12 text-center text-[var(--muted)]">ไม่พบข้อมูล Analytics</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--line)]">
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">ชื่อโพสต์</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">แพลตฟอร์ม</th>
-                <th className="text-right pb-3 text-[var(--muted)] font-medium">Reach</th>
-                <th className="text-right pb-3 text-[var(--muted)] font-medium">Likes</th>
-                <th className="text-right pb-3 text-[var(--muted)] font-medium">Comments</th>
-                <th className="text-right pb-3 text-[var(--muted)] font-medium">Shares</th>
-                <th className="text-left pb-3 text-[var(--muted)] font-medium">วันที่โพสต์</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <tr key={row.id} className="border-b border-[var(--line)] last:border-0 hover:bg-blue-50/40 transition-colors">
-                  <td className="py-3 pr-4 font-medium">{row.title}</td>
-                  <td className="py-3 pr-4">
-                    <PlatformIcon platform={row.platform} showLabel />
-                  </td>
-                  <td className="py-3 pr-4 text-right">{row.reach?.toLocaleString() ?? '—'}</td>
-                  <td className="py-3 pr-4 text-right">{row.likes?.toLocaleString() ?? '—'}</td>
-                  <td className="py-3 pr-4 text-right">{row.comments?.toLocaleString() ?? '—'}</td>
-                  <td className="py-3 pr-4 text-right">{row.shares?.toLocaleString() ?? '—'}</td>
-                  <td className="py-3 text-[var(--muted)]">
-                    {row.scheduled_at
-                      ? new Date(row.scheduled_at).toLocaleDateString('th-TH', { dateStyle: 'medium' })
-                      : '—'}
-                  </td>
+          <div className="table-shell">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--line)]">
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">ชื่อโพสต์</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">แพลตฟอร์ม</th>
+                  <th className="pb-3 text-right font-medium text-[var(--muted)]">Reach</th>
+                  <th className="pb-3 text-right font-medium text-[var(--muted)]">Likes</th>
+                  <th className="pb-3 text-right font-medium text-[var(--muted)]">Comments</th>
+                  <th className="pb-3 text-right font-medium text-[var(--muted)]">Shares</th>
+                  <th className="pb-3 text-left font-medium text-[var(--muted)]">วันที่โพสต์</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr key={row.id} className="border-b border-[var(--line)] last:border-0 hover:bg-slate-50">
+                    <td className="py-4 pr-4 font-medium text-slate-900">{row.title}</td>
+                    <td className="py-4 pr-4">
+                      <PlatformIcon platform={row.platform} showLabel />
+                    </td>
+                    <td className="py-4 pr-4 text-right">{row.reach?.toLocaleString() ?? '—'}</td>
+                    <td className="py-4 pr-4 text-right">{row.likes?.toLocaleString() ?? '—'}</td>
+                    <td className="py-4 pr-4 text-right">{row.comments?.toLocaleString() ?? '—'}</td>
+                    <td className="py-4 pr-4 text-right">{row.shares?.toLocaleString() ?? '—'}</td>
+                    <td className="py-4 text-[var(--muted)]">
+                      {row.scheduled_at
+                        ? new Date(row.scheduled_at).toLocaleDateString('th-TH', { dateStyle: 'medium' })
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </>

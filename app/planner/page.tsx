@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { Platform, ContentStatus } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
+import PlatformIcon from '@/components/PlatformIcon'
 
 type CalendarItem = {
   id: string
@@ -14,19 +15,19 @@ type CalendarItem = {
   content_item_id: string
   campaign_id: string | null
   campaign_name: string | null
+  caption_main: string | null
 }
 
 const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
 
-// Platform event card styles (colors matching dashboard-preview.html)
-const PLATFORM_STYLE: Record<Platform, { bg: string; icon: string; iconBg: string }> = {
-  fb:         { bg: 'rgba(53,108,255,0.10)',  icon: 'f',  iconBg: '#1877f2' },
-  ig:         { bg: 'rgba(143,107,255,0.14)', icon: 'ig', iconBg: 'linear-gradient(135deg,#f58529,#dd2a7b,#8134af)' },
-  tiktok:     { bg: 'rgba(20,20,20,0.07)',    icon: '♪',  iconBg: '#010101' },
-  youtube:    { bg: 'rgba(255,60,60,0.10)',   icon: '▶',  iconBg: '#ff0000' },
-  shopee:     { bg: 'rgba(238,95,17,0.10)',   icon: 'S',  iconBg: '#ee5f11' },
-  other:      { bg: 'rgba(100,100,100,0.08)', icon: '•',  iconBg: '#888' },
+const PLATFORM_STYLE: Record<Platform, string> = {
+  fb: 'border-blue-100 bg-blue-50/80',
+  ig: 'border-fuchsia-100 bg-fuchsia-50/70',
+  tiktok: 'border-slate-200 bg-slate-50',
+  youtube: 'border-rose-100 bg-rose-50/80',
+  shopee: 'border-orange-100 bg-orange-50/80',
+  other: 'border-slate-200 bg-slate-50',
 }
 
 const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published']
@@ -36,12 +37,14 @@ export default function PlannerPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [items, setItems] = useState<CalendarItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
   useEffect(() => {
     setLoading(true)
+    setSelectedDay(null)
     const startOfMonth = new Date(year, month, 1).toISOString()
     const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
 
@@ -49,7 +52,7 @@ export default function PlannerPage() {
       .from('cmp_schedules')
       .select(`
         id, content_item_id, platform, scheduled_at,
-        cmp_content_items(id, title, status, campaign_id,
+        cmp_content_items(id, title, caption_main, status, campaign_id,
           cmp_campaigns(id, name))
       `)
       .gte('scheduled_at', startOfMonth)
@@ -68,6 +71,7 @@ export default function PlannerPage() {
               platform: s.platform as Platform,
               scheduled_at: s.scheduled_at,
               title: content?.title ?? '(ไม่มีชื่อ)',
+              caption_main: content?.caption_main ?? null,
               status: (content?.status ?? 'draft') as ContentStatus,
               campaign_id: content?.campaign_id ?? null,
               campaign_name: campaign?.name ?? null,
@@ -77,6 +81,19 @@ export default function PlannerPage() {
         setLoading(false)
       })
   }, [year, month])
+
+  useEffect(() => {
+    if (selectedDay === null) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSelectedDay(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedDay])
 
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -89,65 +106,44 @@ export default function PlannerPage() {
     itemsByDay[d].push(item)
   }
 
+  const selectedDayItems = selectedDay !== null ? (itemsByDay[selectedDay] ?? []) : []
+
   return (
     <>
-      {/* Topbar */}
-      <section
-        className="flex justify-between items-center gap-4 flex-wrap"
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-      >
-        <div>
-          <h2 className="text-[1.5rem] font-bold leading-tight">ปฏิทินคอนเทนต์</h2>
-          <p className="text-[var(--muted)] text-sm mt-1">วางแผนและติดตามสถานะโพสต์ทุกช่องทาง</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Month nav */}
-          <button
-            onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-            className="w-9 h-9 rounded-[10px] border border-[var(--line)] bg-white flex items-center justify-center hover:bg-gray-50 transition-colors"
-          >
-            ‹
-          </button>
-          <span className="text-sm font-semibold min-w-[120px] text-center">
-            {MONTHS_TH[month]} {year + 543}
-          </span>
-          <button
-            onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-            className="w-9 h-9 rounded-[10px] border border-[var(--line)] bg-white flex items-center justify-center hover:bg-gray-50 transition-colors"
-          >
-            ›
-          </button>
-          {/* View switcher */}
-          <div className="flex bg-[#edf2fb] rounded-[14px] p-1 gap-1 ml-2">
-            {(['calendar', 'kanban', 'timeline'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-2 rounded-[10px] text-sm transition-all ${view === v ? 'bg-white text-[var(--brand)] shadow-sm font-semibold' : 'text-[var(--muted)]'}`}
-              >
-                {v === 'calendar' ? 'Calendar' : v === 'kanban' ? 'Kanban' : 'Timeline'}
-              </button>
-            ))}
+      <section className="page-header">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">ปฏิทินคอนเทนต์</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">วางแผนและติดตามสถานะโพสต์ทุกช่องทาง</p>
           </div>
-          <Link
-            href="/content/new"
-            className="px-4 py-2.5 rounded-[14px] text-sm font-semibold text-white transition-all hover:-translate-y-px"
-            style={{ background: 'linear-gradient(135deg, #336bff, #4b91ff)', boxShadow: '0 14px 24px rgba(51,107,255,0.24)' }}
-          >
-            + เพิ่มกิจกรรม
-          </Link>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
+                ‹
+              </button>
+              <span className="min-w-[128px] text-center text-sm font-semibold text-slate-900">
+                {MONTHS_TH[month]} {year + 543}
+              </span>
+              <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="secondary-button flex h-10 w-10 items-center justify-center text-sm">
+                ›
+              </button>
+            </div>
+            <div className="segmented-control">
+              {(['calendar', 'kanban', 'timeline'] as const).map((v) => (
+                <button key={v} onClick={() => setView(v)} className="segmented-option text-sm" data-active={view === v}>
+                  {v === 'calendar' ? 'Calendar' : v === 'kanban' ? 'Kanban' : 'Timeline'}
+                </button>
+              ))}
+            </div>
+            <Link href="/content/new" className="primary-button px-4 py-2.5 text-center text-sm font-semibold">
+              + เพิ่มกิจกรรม
+            </Link>
+          </div>
         </div>
       </section>
 
       {view === 'calendar' && (
         <CalendarView
-          items={items}
           loading={loading}
           itemsByDay={itemsByDay}
           firstDay={firstDay}
@@ -155,6 +151,8 @@ export default function PlannerPage() {
           year={year}
           month={month}
           today={today}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
         />
       )}
 
@@ -163,16 +161,23 @@ export default function PlannerPage() {
       {view === 'timeline' && (
         <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
       )}
+
+      {selectedDay !== null && (
+        <DayDetailModal
+          day={selectedDay}
+          month={month}
+          year={year}
+          items={selectedDayItems}
+          onClose={() => setSelectedDay(null)}
+        />
+      )}
     </>
   )
 }
 
-// --- Calendar View ---
-
 function CalendarView({
-  items, loading, itemsByDay, firstDay, daysInMonth, year, month, today,
+  loading, itemsByDay, firstDay, daysInMonth, year, month, today, selectedDay, onSelectDay,
 }: {
-  items: CalendarItem[]
   loading: boolean
   itemsByDay: Record<number, CalendarItem[]>
   firstDay: number
@@ -180,138 +185,184 @@ function CalendarView({
   year: number
   month: number
   today: Date
+  selectedDay: number | null
+  onSelectDay: (day: number) => void
 }) {
   return (
-    <section
-      style={{
-        background: 'var(--panel)',
-        border: '1px solid rgba(255,255,255,0.78)',
-        borderRadius: '28px',
-        padding: '20px',
-        boxShadow: '0 18px 38px rgba(18,32,58,0.08)',
-      }}
-    >
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-2 mb-2">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="text-center text-sm text-[var(--muted)] py-2">{d}</div>
-        ))}
-      </div>
-      {/* Day grid */}
-      <div className="grid grid-cols-7 gap-2">
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="min-h-[110px] opacity-25 rounded-[14px] border border-dashed border-[var(--line)]" />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1
-          const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
-          const dayItems = itemsByDay[day] ?? []
-          return (
-            <div
-              key={day}
-              className="min-h-[110px] p-2 rounded-[14px] flex flex-col gap-1.5"
-              style={{
-                border: isToday ? '1px solid rgba(47,102,255,0.34)' : '1px solid var(--line)',
-                background: isToday
-                  ? 'linear-gradient(180deg, rgba(47,102,255,0.08), rgba(255,255,255,0.92))'
-                  : 'rgba(255,255,255,0.72)',
-              }}
-            >
-              <span className={`text-sm font-bold ${isToday ? 'text-[var(--brand)]' : ''}`}>{day}</span>
-              {dayItems.slice(0, 3).map((item) => (
-                <EventCard key={item.id} item={item} />
-              ))}
-              {dayItems.length > 3 && (
-                <span className="text-[0.68rem] text-[var(--muted)] pl-1">+{dayItems.length - 3} อีก</span>
-              )}
-            </div>
-          )
-        })}
-      </div>
+    <section className="surface-card p-4 md:p-6">
+      {loading ? (
+        <p className="py-12 text-center text-sm text-[var(--muted)]">กำลังโหลด...</p>
+      ) : (
+        <>
+          <div className="mb-3 grid grid-cols-7 gap-2">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="rounded-[12px] bg-[var(--panel-soft)] py-3 text-center text-sm text-[var(--muted)]">{d}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-7">
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={`empty-${i}`} className="hidden min-h-[138px] rounded-[16px] border border-dashed border-[var(--line)] bg-[var(--panel-soft)] md:block" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1
+              const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+              const isSelected = selectedDay === day
+              const dayItems = itemsByDay[day] ?? []
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => onSelectDay(day)}
+                  className={`flex min-h-[138px] flex-col gap-2 rounded-[16px] border p-3 text-left transition-colors ${
+                    isToday
+                      ? 'border-blue-500 bg-blue-50'
+                      : isSelected
+                      ? 'border-slate-400 bg-slate-50'
+                      : 'border-[var(--line)] bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-slate-700'}`}>{day}</span>
+                  {dayItems.slice(0, 3).map((item) => (
+                    <EventCard key={item.id} item={item} />
+                  ))}
+                  {dayItems.length > 3 && (
+                    <span className="pl-1 text-[0.72rem] text-[var(--muted)]">+{dayItems.length - 3} อีก</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </section>
   )
 }
 
 function EventCard({ item }: { item: CalendarItem }) {
-  const style = PLATFORM_STYLE[item.platform] ?? PLATFORM_STYLE.other
   const time = new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <Link
-      href={`/content/${item.content_item_id}`}
-      className="rounded-[10px] p-1.5 text-[0.7rem] leading-snug flex items-start gap-1.5 hover:opacity-80 transition-opacity"
-      style={{ background: style.bg }}
-    >
-      {/* Platform icon */}
-      <span
-        className="flex-shrink-0 w-[18px] h-[18px] rounded-[5px] flex items-center justify-center text-white font-bold text-[0.6rem] mt-[1px]"
-        style={{ background: style.iconBg }}
-      >
-        {style.icon}
-      </span>
-      <span className="min-w-0">
-        <strong className="block truncate">{item.title}</strong>
-        <span className="text-[var(--muted)]">{time}</span>
-      </span>
-    </Link>
+    <div className={`rounded-[12px] border px-2.5 py-2 text-[0.72rem] leading-snug ${PLATFORM_STYLE[item.platform] ?? PLATFORM_STYLE.other}`}>
+      <div className="mb-1 flex items-center gap-2">
+        <PlatformIcon platform={item.platform} />
+        <span className="text-[0.68rem] text-[var(--muted)]">{time}</span>
+      </div>
+      <strong className="block truncate text-slate-900">{item.title}</strong>
+    </div>
   )
 }
 
-// --- Kanban View ---
+function DayDetailModal({
+  day,
+  month,
+  year,
+  items,
+  onClose,
+}: {
+  day: number
+  month: number
+  year: number
+  items: CalendarItem[]
+  onClose: () => void
+}) {
+  const dateLabel = new Date(year, month, day).toLocaleDateString('th-TH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/30 p-0 md:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="h-full w-full max-w-[440px] overflow-y-auto border-l border-[var(--line)] bg-white p-5 shadow-2xl md:rounded-[20px] md:border"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[var(--brand)]">กำหนดการประจำวัน</p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-950">{dateLabel}</h3>
+            <p className="mt-1 text-sm text-[var(--muted)]">{items.length} โพสต์ที่กำหนดไว้</p>
+          </div>
+          <button type="button" onClick={onClose} className="secondary-button px-3 py-1.5 text-sm">
+            ปิด
+          </button>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์ที่กำหนดไว้สำหรับวันนี้</div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {items.map((item) => (
+              <div key={item.id} className="surface-muted p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <PlatformIcon platform={item.platform} />
+                      <span className="text-xs font-medium text-[var(--muted)]">
+                        {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <h4 className="mt-3 text-sm font-semibold text-slate-950">{item.title}</h4>
+                  </div>
+                  <StatusBadge status={item.status} />
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">
+                  {item.caption_main?.trim() || 'ไม่มีคำบรรยาย'}
+                </p>
+                <div className="mt-4">
+                  <Link href={`/content/${item.content_item_id}`} className="text-sm font-medium text-[var(--brand)]">
+                    เปิดรายละเอียดโพสต์ →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function KanbanView({ items, loading }: { items: CalendarItem[]; loading: boolean }) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="grid gap-4 xl:grid-cols-5">
       {ALL_STATUSES.map((status) => {
         const statusItems = items.filter((item) => item.status === status)
         return (
-          <div key={status} className="flex-shrink-0 w-64">
-            <div
-              className="rounded-[22px] p-4 flex flex-col gap-3"
-              style={{
-                background: 'var(--panel)',
-                border: '1px solid rgba(255,255,255,0.78)',
-                boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-                minHeight: '200px',
-              }}
-            >
-              <div className="flex justify-between items-center">
-                <StatusBadge status={status} />
-                <span className="text-xs text-[var(--muted)]">{statusItems.length}</span>
-              </div>
-              {statusItems.length === 0 ? (
-                <p className="text-xs text-[var(--muted)] text-center py-4">ไม่มีรายการ</p>
-              ) : (
-                statusItems.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/content/${item.content_item_id}`}
-                    className="block p-3 rounded-[14px] border border-[var(--line)] bg-white hover:shadow-sm transition-shadow"
-                  >
-                    <p className="text-sm font-medium mb-1.5 truncate">{item.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                      <span
-                        className="w-[16px] h-[16px] rounded-[4px] flex items-center justify-center text-white font-bold text-[0.55rem] flex-shrink-0"
-                        style={{ background: PLATFORM_STYLE[item.platform]?.iconBg ?? '#888' }}
-                      >
-                        {PLATFORM_STYLE[item.platform]?.icon}
-                      </span>
+          <section key={status} className="surface-card min-h-[220px] p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <StatusBadge status={status} />
+              <span className="text-xs text-[var(--muted)]">{statusItems.length}</span>
+            </div>
+            {loading ? (
+              <p className="py-4 text-center text-xs text-[var(--muted)]">กำลังโหลด...</p>
+            ) : statusItems.length === 0 ? (
+              <p className="py-4 text-center text-xs text-[var(--muted)]">ไม่มีรายการ</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {statusItems.map((item) => (
+                  <Link key={item.id} href={`/content/${item.content_item_id}`} className="surface-muted block p-3 transition-colors hover:bg-white">
+                    <p className="truncate text-sm font-medium text-slate-900">{item.title}</p>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
+                      <PlatformIcon platform={item.platform} />
                       <span>
                         {new Date(item.scheduled_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
                       </span>
                     </div>
                   </Link>
-                ))
-              )}
-            </div>
-          </div>
+                ))}
+              </div>
+            )}
+          </section>
         )
       })}
     </div>
   )
 }
-
-// --- Timeline View ---
 
 function TimelineView({
   items, loading, daysInMonth, year, month, today,
@@ -323,7 +374,6 @@ function TimelineView({
   month: number
   today: Date
 }) {
-  // Group by campaign
   const campaignMap = new Map<string | null, { name: string; items: CalendarItem[] }>()
 
   for (const item of items) {
@@ -337,7 +387,6 @@ function TimelineView({
     campaignMap.get(key)!.items.push(item)
   }
 
-  // Sort: campaigns first, then no-campaign last
   const rows = Array.from(campaignMap.entries()).sort(([a], [b]) => {
     if (a === '__none__') return 1
     if (b === '__none__') return -1
@@ -348,118 +397,64 @@ function TimelineView({
   const todayDay = today.getFullYear() === year && today.getMonth() === month ? today.getDate() : -1
 
   return (
-    <section
-      style={{
-        background: 'var(--panel)',
-        border: '1px solid rgba(255,255,255,0.78)',
-        borderRadius: '28px',
-        padding: '20px',
-        boxShadow: '0 18px 38px rgba(18,32,58,0.08)',
-        overflowX: 'auto',
-      }}
-    >
+    <section className="surface-card p-5 md:p-6">
       {loading ? (
-        <p className="text-center py-10 text-[var(--muted)]">กำลังโหลด...</p>
+        <p className="py-10 text-center text-[var(--muted)]">กำลังโหลด...</p>
       ) : rows.length === 0 ? (
-        <p className="text-center py-10 text-[var(--muted)]">ไม่มีกำหนดการในเดือนนี้</p>
+        <p className="py-10 text-center text-[var(--muted)]">ไม่มีกำหนดการในเดือนนี้</p>
       ) : (
-        <table className="w-full border-collapse" style={{ minWidth: `${180 + daysInMonth * 36}px` }}>
-          <thead>
-            <tr>
-              <th className="text-left text-xs text-[var(--muted)] font-medium pb-3 pr-4 w-[180px]">แคมเปญ</th>
-              {days.map((d) => (
-                <th
-                  key={d}
-                  className="text-center text-xs font-medium pb-3 w-9"
-                  style={{
-                    color: d === todayDay ? 'var(--brand)' : 'var(--muted)',
-                    fontWeight: d === todayDay ? 700 : 400,
-                  }}
-                >
-                  {d}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([key, row]) => {
-              // Index items by day
-              const itemsByDay: Record<number, CalendarItem[]> = {}
-              for (const item of row.items) {
-                const d = new Date(item.scheduled_at).getDate()
-                if (!itemsByDay[d]) itemsByDay[d] = []
-                itemsByDay[d].push(item)
-              }
+        <div className="table-shell">
+          <table className="w-full border-collapse" style={{ minWidth: `${180 + daysInMonth * 44}px` }}>
+            <thead>
+              <tr>
+                <th className="w-[180px] pb-3 pr-4 text-left text-xs font-medium text-[var(--muted)]">แคมเปญ</th>
+                {days.map((d) => (
+                  <th key={d} className={`w-11 pb-3 text-center text-xs font-medium ${d === todayDay ? 'text-slate-950' : 'text-[var(--muted)]'}`}>
+                    {d}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([key, row]) => {
+                const itemsByDay: Record<number, CalendarItem[]> = {}
+                for (const item of row.items) {
+                  const d = new Date(item.scheduled_at).getDate()
+                  if (!itemsByDay[d]) itemsByDay[d] = []
+                  itemsByDay[d].push(item)
+                }
 
-              return (
-                <tr key={key} className="border-t border-[var(--line)]">
-                  <td className="py-2 pr-4">
-                    <span
-                      className="text-sm font-medium truncate block max-w-[170px]"
-                      style={{ color: key === '__none__' ? 'var(--muted)' : 'var(--text)' }}
-                    >
-                      {row.name}
-                    </span>
-                  </td>
-                  {days.map((d) => {
-                    const dayItems = itemsByDay[d] ?? []
-                    const isToday = d === todayDay
-                    return (
-                      <td
-                        key={d}
-                        className="py-2 text-center align-middle"
-                        style={{
-                          background: isToday ? 'rgba(47,102,255,0.04)' : undefined,
-                        }}
-                      >
-                        {dayItems.length > 0 && (
-                          <div className="flex flex-col gap-0.5 items-center">
+                return (
+                  <tr key={key} className="border-t border-[var(--line)]">
+                    <td className="py-3 pr-4 align-top">
+                      <span className={`block max-w-[170px] truncate text-sm font-medium ${key === '__none__' ? 'text-[var(--muted)]' : 'text-slate-900'}`}>
+                        {row.name}
+                      </span>
+                    </td>
+                    {days.map((d) => {
+                      const dayItems = itemsByDay[d] ?? []
+                      const isToday = d === todayDay
+                      return (
+                        <td key={d} className={`py-2 text-center align-top ${isToday ? 'bg-slate-50' : ''}`}>
+                          <div className="flex flex-col items-center gap-1">
                             {dayItems.map((item) => (
-                              <Link
-                                key={item.id}
-                                href={`/content/${item.content_item_id}`}
-                                title={`${item.title}\n${new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`}
-                                className="block hover:opacity-70 transition-opacity"
-                              >
-                                <span
-                                  className="w-[22px] h-[22px] rounded-[6px] flex items-center justify-center text-white font-bold text-[0.55rem] mx-auto"
-                                  style={{ background: PLATFORM_STYLE[item.platform]?.iconBg ?? '#888' }}
-                                >
-                                  {PLATFORM_STYLE[item.platform]?.icon}
+                              <Link key={item.id} href={`/content/${item.content_item_id}`} title={`${item.title}\n${new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`}>
+                                <span className="inline-flex rounded-[10px] border border-[var(--line)] bg-white p-1">
+                                  <PlatformIcon platform={item.platform} />
                                 </span>
                               </Link>
                             ))}
                           </div>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
-
-      {/* Legend */}
-      <div className="flex gap-4 mt-4 pt-4 border-t border-[var(--line)] flex-wrap">
-        {(Object.entries(PLATFORM_STYLE) as [Platform, typeof PLATFORM_STYLE[Platform]][])
-          .filter(([p]) => ['fb', 'ig', 'tiktok', 'youtube'].includes(p))
-          .map(([platform, s]) => (
-            <div key={platform} className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-              <span
-                className="w-[16px] h-[16px] rounded-[4px] flex items-center justify-center text-white font-bold text-[0.5rem]"
-                style={{ background: s.iconBg }}
-              >
-                {s.icon}
-              </span>
-              <span>
-                {({ fb: 'Facebook', ig: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' } as Record<string, string>)[platform]}
-              </span>
-            </div>
-          ))}
-        <span className="text-xs text-[var(--muted)] ml-auto">hover เพื่อดูชื่อโพสต์</span>
-      </div>
     </section>
   )
 }

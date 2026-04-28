@@ -24,9 +24,7 @@ export default function CampaignsPage() {
       if (item.campaign_id) counts[item.campaign_id] = (counts[item.campaign_id] ?? 0) + 1
     }
 
-    setCampaigns(
-      (campaignData ?? []).map((c) => ({ ...c, content_count: counts[c.id] ?? 0 }))
-    )
+    setCampaigns((campaignData ?? []).map((c) => ({ ...c, content_count: counts[c.id] ?? 0 })))
     setLoading(false)
   }
 
@@ -54,68 +52,39 @@ export default function CampaignsPage() {
 
   return (
     <>
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.75)',
-          borderRadius: '26px',
-          padding: '18px 22px',
-          backdropFilter: 'blur(18px)',
-        }}
-        className="flex justify-between items-center gap-4"
-      >
+      <section className="page-header flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-[1.5rem] font-bold leading-tight">แคมเปญ</h2>
-          <p className="text-[var(--muted)] text-sm mt-1">จัดกลุ่มคอนเทนต์ตามแคมเปญ</p>
+          <h2 className="text-[1.75rem] font-semibold leading-tight text-slate-950">แคมเปญ</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">จัดกลุ่มคอนเทนต์ตามแคมเปญ</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2.5 rounded-[14px] text-sm font-semibold text-white transition-all hover:-translate-y-px"
-          style={{ background: 'linear-gradient(135deg, #336bff, #4b91ff)', boxShadow: '0 14px 24px rgba(51,107,255,0.24)' }}
-        >
+        <button onClick={() => setShowForm(true)} className="primary-button px-4 py-2.5 text-sm font-semibold">
           + สร้างแคมเปญ
         </button>
       </section>
 
-      {/* Create form */}
       {showForm && (
-        <section
-          style={{
-            background: 'var(--panel)',
-            border: '1px solid rgba(47,102,255,0.3)',
-            borderRadius: '22px',
-            padding: '20px',
-          }}
-        >
-          <h3 className="font-semibold mb-4">สร้างแคมเปญใหม่</h3>
+        <section className="surface-card p-5 md:p-6">
+          <h3 className="mb-4 text-base font-semibold text-slate-950">สร้างแคมเปญใหม่</h3>
           <div className="flex flex-col gap-3">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="ชื่อแคมเปญ"
-              className="px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm focus:border-[var(--brand)] transition-colors"
+              className="input-shell px-4 py-2.5 text-sm outline-none"
             />
             <input
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="คำอธิบาย (ไม่บังคับ)"
-              className="px-4 py-2.5 rounded-[12px] border border-[var(--line)] outline-none text-sm focus:border-[var(--brand)] transition-colors"
+              className="input-shell px-4 py-2.5 text-sm outline-none"
             />
             <div className="flex gap-2">
-              <button
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2 rounded-[12px] border border-[var(--line)] text-sm hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setShowForm(false)} className="secondary-button px-4 py-2 text-sm">
                 ยกเลิก
               </button>
-              <button
-                onClick={createCampaign}
-                disabled={creating || !newName.trim()}
-                className="px-5 py-2 rounded-[12px] text-sm font-semibold text-white disabled:opacity-50 transition-all"
-                style={{ background: 'linear-gradient(135deg, #336bff, #4b91ff)' }}
-              >
+              <button onClick={createCampaign} disabled={creating || !newName.trim()} className="primary-button px-5 py-2 text-sm font-semibold disabled:opacity-50">
                 {creating ? 'กำลังสร้าง...' : 'สร้าง'}
               </button>
             </div>
@@ -123,49 +92,28 @@ export default function CampaignsPage() {
         </section>
       )}
 
-      <section
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid rgba(255,255,255,0.78)',
-          borderRadius: '22px',
-          padding: '20px',
-          boxShadow: '0 16px 30px rgba(27,43,79,0.06)',
-        }}
-      >
+      <section className="surface-card p-5 md:p-6">
         {loading ? (
-          <p className="text-[var(--muted)] text-center py-10">กำลังโหลด...</p>
+          <p className="py-10 text-center text-[var(--muted)]">กำลังโหลด...</p>
         ) : campaigns.length === 0 ? (
-          <p className="text-[var(--muted)] text-center py-10">ยังไม่มีแคมเปญ</p>
+          <p className="py-10 text-center text-[var(--muted)]">ยังไม่มีแคมเปญ</p>
         ) : (
           <div className="flex flex-col gap-3">
             {campaigns.map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center justify-between gap-4 p-4 rounded-[16px] border border-[var(--line)] bg-white"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{c.name}</p>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={
-                        c.status === 'active'
-                          ? { background: 'rgba(31,191,117,0.12)', color: '#0d8a54' }
-                          : { background: 'rgba(111,125,150,0.1)', color: '#6f7d96' }
-                      }
-                    >
+              <div key={c.id} className="surface-muted flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-slate-900">{c.name}</p>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                       {c.status === 'active' ? 'กำลังดำเนินการ' : 'เก็บถาวร'}
                     </span>
                   </div>
-                  {c.description && <p className="text-sm text-[var(--muted)] mt-0.5">{c.description}</p>}
+                  {c.description && <p className="mt-1 text-sm text-[var(--muted)]">{c.description}</p>}
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-[var(--muted)]">{c.content_count} คอนเทนต์</span>
                   {c.status === 'active' && (
-                    <button
-                      onClick={() => archiveCampaign(c.id)}
-                      className="text-xs text-[var(--muted)] hover:text-red-500 transition-colors px-3 py-1.5 rounded-[10px] border border-[var(--line)]"
-                    >
+                    <button onClick={() => archiveCampaign(c.id)} className="secondary-button px-3 py-1.5 text-xs text-[var(--muted)]">
                       เก็บถาวร
                     </button>
                   )}
