@@ -9,7 +9,8 @@
       "Bash(taskkill /F /IM node.exe)",
       "PowerShell(Stop-Process -Name node -Force -ErrorAction SilentlyContinue)",
       "Bash(gh auth *)",
-      "Bash(npx vercel *)"
+      "Bash(npx vercel *)",
+      "Bash(git add *)"
     ]
   }
 }

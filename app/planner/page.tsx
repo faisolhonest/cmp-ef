@@ -51,27 +51,31 @@ export default function PlannerPage() {
   }, [defaultDay])
 
   useEffect(() => {
+    let stale = false
     setLoading(true)
 
     const startOfMonth = new Date(year, month, 1).toISOString()
     const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
 
+    // !inner ensures rows whose related content_item doesn't match the filter
+    // are excluded entirely (true inner join), not returned with null content.
     let query = supabase
       .from('cmp_schedules')
       .select(`
         id, content_item_id, platform, scheduled_at,
-        cmp_content_items(id, title, caption_main, status, campaign_id,
+        cmp_content_items!inner(id, title, caption_main, status, campaign_id,
           cmp_campaigns(id, name))
       `)
       .gte('scheduled_at', startOfMonth)
       .lte('scheduled_at', endOfMonth)
       .order('scheduled_at')
 
-    if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
     if (platformFilter !== 'all') query = query.eq('platform', platformFilter)
+    if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
     if (statusFilter !== 'all') query = query.eq('cmp_content_items.status', statusFilter)
 
     query.then(({ data }) => {
+      if (stale) return
       setItems(
         (data ?? []).map((schedule: any) => {
           const content = Array.isArray(schedule.cmp_content_items) ? schedule.cmp_content_items[0] : schedule.cmp_content_items
@@ -94,6 +98,8 @@ export default function PlannerPage() {
       )
       setLoading(false)
     })
+
+    return () => { stale = true }
   }, [campaignFilter, month, platformFilter, statusFilter, year])
 
   const itemsByDay = useMemo(() => {

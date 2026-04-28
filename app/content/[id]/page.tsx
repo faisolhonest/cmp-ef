@@ -7,20 +7,15 @@ import type { ContentItemWithRelations, Schedule, PostAnalytics, ContentStatus }
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 
-const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
-  draft: 'review',
-  review: 'approved',
-  approved: 'scheduled',
-  scheduled: 'published',
-  published: 'archived',
-}
+const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published', 'archived']
 
-const STATUS_ACTION_LABELS: Partial<Record<ContentStatus, string>> = {
-  draft: 'ส่งรีวิว',
-  review: 'อนุมัติ',
-  approved: 'กำหนดเผยแพร่',
-  scheduled: 'ทำเครื่องหมายว่าเผยแพร่แล้ว',
-  published: 'เก็บถาวร',
+const STATUS_LABELS: Record<ContentStatus, string> = {
+  draft: 'Draft',
+  review: 'In Review',
+  approved: 'Approved',
+  scheduled: 'Scheduled',
+  published: 'Published',
+  archived: 'Archived',
 }
 
 export default function ContentDetailPage() {
@@ -31,6 +26,7 @@ export default function ContentDetailPage() {
   const [analytics, setAnalytics] = useState<PostAnalytics[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -55,21 +51,15 @@ export default function ContentDetailPage() {
     load()
   }, [id, router])
 
-  async function advanceStatus() {
-    if (!item) return
-    const next = NEXT_STATUS[item.status]
-    if (!next) return
+  async function updateStatus(next: ContentStatus) {
+    if (!item || next === item.status) return
     setUpdating(true)
     const { data } = await supabase.from('cmp_content_items').update({ status: next }).eq('id', id).select().single()
-    if (data) setItem({ ...item, ...data })
-    setUpdating(false)
-  }
-
-  async function archiveContent() {
-    if (!item) return
-    setUpdating(true)
-    const { data } = await supabase.from('cmp_content_items').update({ status: 'archived' }).eq('id', id).select().single()
-    if (data) setItem({ ...item, ...data })
+    if (data) {
+      setItem({ ...item, ...data })
+      setToast(`สถานะเปลี่ยนเป็น ${STATUS_LABELS[next]}`)
+      setTimeout(() => setToast(null), 2500)
+    }
     setUpdating(false)
   }
 
@@ -79,10 +69,15 @@ export default function ContentDetailPage() {
   if (!item) return null
 
   const analyticsById = Object.fromEntries(analytics.map((a) => [a.schedule_id, a]))
-  const nextStatus = NEXT_STATUS[item.status]
 
   return (
     <>
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg">
+          {toast}
+        </div>
+      )}
+
       <section className="page-header">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
@@ -90,26 +85,27 @@ export default function ContentDetailPage() {
               ← คลังคอนเทนต์
             </Link>
             <h2 className="mt-3 text-[1.6rem] font-semibold leading-tight text-slate-950">{item.title}</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <StatusBadge status={item.status} />
-              {item.campaign && (
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-[var(--muted)]">
-                  {(item.campaign as any).name}
-                </span>
-              )}
-            </div>
+            {item.campaign && (
+              <span className="mt-2 inline-block rounded-full bg-slate-100 px-2.5 py-1 text-xs text-[var(--muted)]">
+                {(item.campaign as any).name}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2">
-            {item.status !== 'archived' && item.status !== 'published' && (
-              <button onClick={archiveContent} disabled={updating} className="secondary-button px-4 py-2 text-sm disabled:opacity-50">
-                เก็บถาวร
-              </button>
-            )}
-            {nextStatus && (
-              <button onClick={advanceStatus} disabled={updating} className="primary-button px-5 py-2 text-sm font-semibold disabled:opacity-50">
-                {updating ? '...' : STATUS_ACTION_LABELS[item.status]}
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-[var(--muted)]">สถานะ</label>
+            <div className="input-shell flex items-center gap-2 px-3 py-2">
+              <StatusBadge status={item.status} />
+              <select
+                value={item.status}
+                disabled={updating}
+                onChange={(e) => updateStatus(e.target.value as ContentStatus)}
+                className="cursor-pointer border-0 bg-transparent text-sm font-medium text-[var(--text)] outline-none disabled:opacity-50"
+              >
+                {ALL_STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </section>

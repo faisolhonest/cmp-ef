@@ -208,9 +208,9 @@ export default function ContentPage() {
                           })}
                         </span>
                         <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button type="button" className="rounded-[10px] border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700">
+                          <Link href={`/content/${item.id}`} className="rounded-[10px] border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700">
                             Edit
-                          </button>
+                          </Link>
                           <button type="button" className="rounded-[10px] border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600">
                             Delete
                           </button>
