@@ -21,3 +21,10 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# generated
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# leftover scaffold
+/cmp-app/
