@@ -27,6 +27,8 @@ export default function ContentDetailPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -61,6 +63,31 @@ export default function ContentDetailPage() {
       setTimeout(() => setToast(null), 2500)
     }
     setUpdating(false)
+  }
+
+  function startEditSchedule(s: Schedule) {
+    // datetime-local input expects "YYYY-MM-DDTHH:MM" in local time
+    const local = new Date(s.scheduled_at)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const value = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+    setEditingScheduleId(s.id)
+    setEditingValue(value)
+  }
+
+  async function saveSchedule(scheduleId: string) {
+    if (!editingValue) return
+    const { data } = await supabase
+      .from('cmp_schedules')
+      .update({ scheduled_at: new Date(editingValue).toISOString() })
+      .eq('id', scheduleId)
+      .select()
+      .single()
+    if (data) {
+      setSchedules((prev) => prev.map((s) => s.id === scheduleId ? { ...s, scheduled_at: data.scheduled_at } : s))
+      setToast('บันทึกเวลาโพสต์เรียบร้อย')
+      setTimeout(() => setToast(null), 2500)
+    }
+    setEditingScheduleId(null)
   }
 
   if (loading) {
@@ -140,14 +167,37 @@ export default function ContentDetailPage() {
               <div className="flex flex-col gap-3">
                 {schedules.map((s) => {
                   const a = analyticsById[s.id]
+                  const isEditing = editingScheduleId === s.id
                   return (
                     <div key={s.id} className="surface-muted p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-3">
                           <PlatformIcon platform={s.platform} showLabel />
-                          <span className="text-sm text-[var(--muted)]">
-                            {new Date(s.scheduled_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
-                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="datetime-local"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                className="input-shell rounded-[10px] px-2.5 py-1.5 text-sm text-slate-900"
+                              />
+                              <button onClick={() => saveSchedule(s.id)} className="primary-button px-3 py-1.5 text-xs font-semibold">
+                                บันทึก
+                              </button>
+                              <button onClick={() => setEditingScheduleId(null)} className="secondary-button px-3 py-1.5 text-xs">
+                                ยกเลิก
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startEditSchedule(s)}
+                              className="group flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-slate-900"
+                            >
+                              {new Date(s.scheduled_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                              <PencilIcon />
+                            </button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-[var(--muted)]">{s.post_mode === 'auto' ? 'Auto' : 'Manual'}</span>
@@ -217,5 +267,13 @@ function Metric({ label, value }: { label: string; value: number | null }) {
       <p className="text-xs text-[var(--muted)]">{label}</p>
       <p className="text-sm font-semibold text-slate-900">{value?.toLocaleString() ?? '—'}</p>
     </div>
+  )
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" className="opacity-0 transition-opacity group-hover:opacity-60" aria-hidden="true">
+      <path d="M11 2.5 13.5 5 5.5 13H3v-2.5L11 2.5Z" />
+    </svg>
   )
 }
