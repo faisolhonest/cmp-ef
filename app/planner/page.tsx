@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { Platform, ContentStatus } from '@/lib/types'
+import type { Platform, PublishingStatus, ScheduleStatus } from '@/lib/types'
+import { getSchedulePublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
@@ -13,7 +14,7 @@ type CalendarItem = {
   title: string
   platform: Platform
   scheduled_at: string
-  status: ContentStatus
+  status: PublishingStatus
   content_item_id: string
   campaign_id: string | null
   campaign_name: string | null
@@ -22,21 +23,19 @@ type CalendarItem = {
 
 const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
-const STATUS_ORDER: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published']
-const STATUS_LEGEND: { status: ContentStatus; label: string; dot: string }[] = [
-  { status: 'draft', label: 'Draft', dot: 'bg-slate-400' },
-  { status: 'review', label: 'Review', dot: 'bg-yellow-400' },
-  { status: 'approved', label: 'Approved', dot: 'bg-blue-400' },
-  { status: 'scheduled', label: 'Scheduled', dot: 'bg-violet-400' },
-  { status: 'published', label: 'Published', dot: 'bg-green-400' },
+const STATUS_ORDER: PublishingStatus[] = ['scheduled', 'published', 'failed', 'incomplete']
+const STATUS_LEGEND: { status: PublishingStatus; label: string; dot: string }[] = [
+  { status: 'scheduled', label: 'กำหนดแล้ว', dot: 'bg-violet-400' },
+  { status: 'published', label: 'เผยแพร่แล้ว', dot: 'bg-green-400' },
+  { status: 'failed', label: 'โพสต์ไม่สำเร็จ', dot: 'bg-red-400' },
+  { status: 'incomplete', label: 'ข้อมูลไม่ครบ', dot: 'bg-amber-400' },
 ]
 const STATUS_FILTER_OPTIONS: FilterDropdownOption[] = [
   { value: 'all', label: 'ทั้งหมด', dotClassName: 'bg-slate-400' },
-  { value: 'draft', label: 'Draft', dotClassName: 'bg-slate-400' },
-  { value: 'review', label: 'Review', dotClassName: 'bg-yellow-400' },
-  { value: 'approved', label: 'Approved', dotClassName: 'bg-blue-400' },
-  { value: 'scheduled', label: 'Scheduled', dotClassName: 'bg-violet-400' },
-  { value: 'published', label: 'Published', dotClassName: 'bg-green-400' },
+  { value: 'scheduled', label: 'กำหนดแล้ว', dotClassName: 'bg-violet-400' },
+  { value: 'published', label: 'เผยแพร่แล้ว', dotClassName: 'bg-green-400' },
+  { value: 'failed', label: 'โพสต์ไม่สำเร็จ', dotClassName: 'bg-red-400' },
+  { value: 'incomplete', label: 'ข้อมูลไม่ครบ', dotClassName: 'bg-amber-400' },
 ]
 const CHANNEL_DROPDOWN_OPTIONS = CHANNEL_OPTIONS.map(({ value, label, dotClassName }) => ({
   value,
@@ -53,7 +52,7 @@ export default function PlannerPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [brandFilter, setBrandFilter] = useState('all')
   const [campaignFilter, setCampaignFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | ContentStatus>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | PublishingStatus>('all')
   const { channelFilter, setChannelFilter } = useChannelFilter()
 
   const year = currentDate.getFullYear()
@@ -77,8 +76,8 @@ export default function PlannerPage() {
     let query = supabase
       .from('cmp_schedules')
       .select(`
-        id, content_item_id, platform, scheduled_at,
-        cmp_content_items!inner(id, title, caption_main, status, campaign_id,
+        id, content_item_id, platform, scheduled_at, status,
+        cmp_content_items!inner(id, title, caption_main, campaign_id,
           cmp_campaigns(id, name))
       `)
       .gte('scheduled_at', startOfMonth)
@@ -87,16 +86,16 @@ export default function PlannerPage() {
 
     if (channelFilter !== 'all') query = query.eq('platform', channelFilter)
     if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
-    if (statusFilter !== 'all') query = query.eq('cmp_content_items.status', statusFilter)
 
     query.then(({ data }) => {
       if (stale) return
-      setItems(
+      const mappedItems =
         (data ?? []).map((schedule: any) => {
           const content = Array.isArray(schedule.cmp_content_items) ? schedule.cmp_content_items[0] : schedule.cmp_content_items
           const campaign = content?.cmp_campaigns
             ? (Array.isArray(content.cmp_campaigns) ? content.cmp_campaigns[0] : content.cmp_campaigns)
             : null
+          const status = getSchedulePublishingStatus(schedule.status as ScheduleStatus)
 
           return {
             id: schedule.id,
@@ -105,12 +104,12 @@ export default function PlannerPage() {
             scheduled_at: schedule.scheduled_at,
             title: content?.title ?? '(ไม่มีชื่อ)',
             caption_main: content?.caption_main ?? null,
-            status: (content?.status ?? 'draft') as ContentStatus,
+            status,
             campaign_id: content?.campaign_id ?? null,
             campaign_name: campaign?.name ?? null,
           }
         })
-      )
+      setItems(statusFilter === 'all' ? mappedItems : mappedItems.filter((item) => item.status === statusFilter))
       setLoading(false)
     })
 
@@ -156,11 +155,11 @@ export default function PlannerPage() {
   })
   const todayItemsCount = items.filter((item) => {
     const date = new Date(item.scheduled_at)
-    return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()
+    return item.status === 'scheduled' && date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()
   }).length
   const scheduledCount = items.filter((item) => item.status === 'scheduled').length
-  const reviewCount = items.filter((item) => item.status === 'review').length
   const publishedCount = items.filter((item) => item.status === 'published').length
+  const failedCount = items.filter((item) => item.status === 'failed').length
 
   return (
     <div className="planner-shell">
@@ -205,8 +204,8 @@ export default function PlannerPage() {
                 <strong>{scheduledCount}</strong>
               </div>
               <div className="planner-summary-card">
-                <span>Review</span>
-                <strong>{reviewCount}</strong>
+                <span>Failed</span>
+                <strong>{failedCount}</strong>
               </div>
               <div className="planner-summary-card">
                 <span>Published</span>
@@ -242,9 +241,9 @@ export default function PlannerPage() {
                   />
                   <FilterDropdown
                     icon={<FilterIcon icon="status" />}
-                    label="สถานะ"
+                    label="สถานะเผยแพร่"
                     value={statusFilter}
-                    onChange={(value) => setStatusFilter(value as 'all' | ContentStatus)}
+                    onChange={(value) => setStatusFilter(value as 'all' | PublishingStatus)}
                     options={STATUS_FILTER_OPTIONS}
                   />
                 </div>
@@ -637,20 +636,18 @@ function TimelineView({
   )
 }
 
-const statusEventClass: Record<ContentStatus, string> = {
+const statusEventClass: Record<PublishingStatus, string> = {
   draft: 'planner-event-draft',
-  review: 'planner-event-review',
-  approved: 'planner-event-approved',
   scheduled: 'planner-event-scheduled',
   published: 'planner-event-published',
-  archived: 'planner-event-draft',
+  failed: 'planner-event-failed',
+  incomplete: 'planner-event-incomplete',
 }
 
-const statusText: Record<ContentStatus, string> = {
+const statusText: Record<PublishingStatus, string> = {
   draft: 'ร่าง',
-  review: 'รอตรวจ',
-  approved: 'อนุมัติแล้ว',
   scheduled: 'กำหนดแล้ว',
   published: 'เผยแพร่แล้ว',
-  archived: 'เก็บถาวร',
+  failed: 'โพสต์ไม่สำเร็จ',
+  incomplete: 'ข้อมูลไม่ครบ',
 }

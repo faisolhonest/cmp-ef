@@ -17,13 +17,14 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   live_teaser: 'Live Teaser',
 }
 
-const PUBLISHING_STATUSES: PublishingStatus[] = ['draft', 'scheduled', 'published', 'failed']
+const PUBLISHING_STATUSES: PublishingStatus[] = ['draft', 'scheduled', 'published', 'failed', 'incomplete']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
 const statusDotClass: Record<PublishingStatus, string> = {
   draft: 'bg-slate-400',
   scheduled: 'bg-violet-400',
   published: 'bg-green-400',
   failed: 'bg-red-400',
+  incomplete: 'bg-amber-400',
 }
 
 type ContentWithSchedulePlatforms = ContentItem & {

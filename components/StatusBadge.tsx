@@ -9,6 +9,7 @@ const styles: Record<BadgeStatus, string> = {
   scheduled: 'bg-purple-200 text-purple-900',
   published: 'bg-green-200 text-green-900',
   failed: 'bg-red-100 text-red-800',
+  incomplete: 'bg-amber-100 text-amber-800',
   archived: 'bg-slate-200 text-slate-600',
 }
 
@@ -19,6 +20,7 @@ const labels: Record<BadgeStatus, string> = {
   scheduled: 'กำหนดแล้ว',
   published: 'เผยแพร่แล้ว',
   failed: 'โพสต์ไม่สำเร็จ',
+  incomplete: 'ข้อมูลไม่ครบ',
   archived: 'เก็บถาวร',
 }
 

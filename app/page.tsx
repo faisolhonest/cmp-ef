@@ -2,19 +2,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { ContentStatus, Platform } from '@/lib/types'
+import type { PublishingStatus, ScheduleStatus, Platform } from '@/lib/types'
+import { getSchedulePublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 import { useChannelFilter } from '@/components/ChannelFilterContext'
 
-type StatCounts = Record<ContentStatus, number>
+type StatCounts = {
+  todayQueue: number
+  scheduled: number
+  published: number
+  failed: number
+}
 
 type UpcomingItem = {
   id: string
   title: string
   platform: Platform
   scheduled_at: string
-  status: ContentStatus
+  status: PublishingStatus
 }
 
 export default function DashboardPage() {
@@ -32,30 +38,41 @@ export default function DashboardPage() {
       const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
       const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).toISOString()
 
-      const [{ data: contentData }, { data: allSchedulesData }, { data: schedulesData }] = await Promise.all([
-        supabase.from('cmp_content_items').select('id, status'),
-        supabase.from('cmp_schedules').select('content_item_id, platform'),
+      const [{ data: allSchedulesData }, { data: schedulesData }] = await Promise.all([
+        supabase.from('cmp_schedules').select('content_item_id, platform, status, scheduled_at'),
         supabase
           .from('cmp_schedules')
-          .select('id, content_item_id, platform, scheduled_at, cmp_content_items(id, title, status)')
+          .select('id, content_item_id, platform, status, scheduled_at, cmp_content_items(id, title)')
           .gte('scheduled_at', startOfDay)
           .lte('scheduled_at', endOfWeek)
           .eq('status', 'pending')
           .order('scheduled_at'),
       ])
 
-      const relevantContentIds =
+      const filteredAllSchedules =
         channelFilter === 'all'
-          ? null
-          : new Set(
-            (allSchedulesData ?? [])
-              .filter((schedule) => schedule.platform === channelFilter)
-              .map((schedule) => schedule.content_item_id)
-          )
-      const counts = {} as StatCounts
-      for (const item of contentData ?? []) {
-        if (relevantContentIds && !relevantContentIds.has(item.id)) continue
-        counts[item.status as ContentStatus] = (counts[item.status as ContentStatus] ?? 0) + 1
+          ? (allSchedulesData ?? [])
+          : (allSchedulesData ?? []).filter((schedule) => schedule.platform === channelFilter)
+
+      const counts: StatCounts = {
+        todayQueue: 0,
+        scheduled: 0,
+        published: 0,
+        failed: 0,
+      }
+      for (const schedule of filteredAllSchedules) {
+        const displayStatus = getSchedulePublishingStatus(schedule.status as ScheduleStatus)
+        const scheduledAt = new Date(schedule.scheduled_at)
+        const isToday = scheduledAt >= new Date(startOfDay) && scheduledAt < new Date(endOfDay)
+
+        if (displayStatus === 'scheduled') {
+          counts.scheduled += 1
+          if (isToday) counts.todayQueue += 1
+        } else if (displayStatus === 'published') {
+          counts.published += 1
+        } else if (displayStatus === 'failed') {
+          counts.failed += 1
+        }
       }
       setStats(counts)
 
@@ -74,7 +91,7 @@ export default function DashboardPage() {
           title: content.title,
           platform: s.platform as Platform,
           scheduled_at: s.scheduled_at,
-          status: content.status as ContentStatus,
+          status: getSchedulePublishingStatus(s.status as ScheduleStatus),
         }
         if (s.scheduled_at < endOfDay) today.push(item)
         else week.push(item)
@@ -87,10 +104,10 @@ export default function DashboardPage() {
   }, [channelFilter])
 
   const statCards = [
-    { label: 'ร่าง', key: 'draft' as ContentStatus, tone: 'text-slate-700' },
-    { label: 'อนุมัติแล้ว', key: 'approved' as ContentStatus, tone: 'text-blue-600' },
-    { label: 'กำหนดแล้ว', key: 'scheduled' as ContentStatus, tone: 'text-violet-600' },
-    { label: 'เผยแพร่แล้ว', key: 'published' as ContentStatus, tone: 'text-emerald-600' },
+    { label: 'คิววันนี้', key: 'todayQueue' as const, tone: 'text-slate-700' },
+    { label: 'กำหนดแล้ว', key: 'scheduled' as const, tone: 'text-violet-600' },
+    { label: 'เผยแพร่แล้ว', key: 'published' as const, tone: 'text-emerald-600' },
+    { label: 'โพสต์ไม่สำเร็จ', key: 'failed' as const, tone: 'text-red-600' },
   ]
 
   return (
