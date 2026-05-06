@@ -3,9 +3,19 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { ContentItemWithRelations, Schedule, PostAnalytics, ContentStatus } from '@/lib/types'
+import type { ContentItemWithRelations, Schedule, PostAnalytics, ContentStatus, Platform, PostMode } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
+
+const PLATFORMS: { value: Platform; label: string }[] = [
+  { value: 'fb', label: 'Facebook' },
+  { value: 'ig', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'shopee', label: 'Shopee' },
+  { value: 'other', label: 'อื่นๆ' },
+]
+const AUTO_PLATFORMS: Platform[] = ['fb', 'ig']
 
 const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published', 'archived']
 
@@ -29,6 +39,12 @@ export default function ContentDetailPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
+  const [addingSchedule, setAddingSchedule] = useState(false)
+  const [newSched, setNewSched] = useState<{ platform: Platform; scheduled_at: string; post_mode: PostMode }>({
+    platform: 'fb',
+    scheduled_at: '',
+    post_mode: 'auto',
+  })
 
   useEffect(() => {
     async function load() {
@@ -72,6 +88,56 @@ export default function ContentDetailPage() {
     const value = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
     setEditingScheduleId(s.id)
     setEditingValue(value)
+  }
+
+  async function markAsPosted(scheduleId: string) {
+    const { data } = await supabase
+      .from('cmp_schedules')
+      .update({ status: 'manually_posted' })
+      .eq('id', scheduleId)
+      .select()
+      .single()
+    if (data) {
+      setSchedules((prev) => prev.map((s) => s.id === scheduleId ? { ...s, status: 'manually_posted' as const } : s))
+      setToast('บันทึกว่าโพสต์เรียบร้อยแล้ว')
+      setTimeout(() => setToast(null), 2500)
+    }
+  }
+
+  async function retrySchedule(scheduleId: string) {
+    const { data } = await supabase
+      .from('cmp_schedules')
+      .update({ status: 'pending' })
+      .eq('id', scheduleId)
+      .select()
+      .single()
+    if (data) {
+      setSchedules((prev) => prev.map((s) => s.id === scheduleId ? { ...s, status: 'pending' as const } : s))
+      setToast('รีเซ็ตสถานะเพื่อลองใหม่แล้ว')
+      setTimeout(() => setToast(null), 2500)
+    }
+  }
+
+  async function saveNewSchedule() {
+    if (!newSched.scheduled_at) return
+    const { data } = await supabase
+      .from('cmp_schedules')
+      .insert({
+        content_item_id: id,
+        platform: newSched.platform,
+        scheduled_at: new Date(newSched.scheduled_at).toISOString(),
+        post_mode: newSched.post_mode,
+        status: 'pending' as const,
+      })
+      .select()
+      .single()
+    if (data) {
+      setSchedules((prev) => [...prev, data as Schedule])
+      setNewSched({ platform: 'fb', scheduled_at: '', post_mode: 'auto' })
+      setAddingSchedule(false)
+      setToast('เพิ่มกำหนดการโพสต์แล้ว')
+      setTimeout(() => setToast(null), 2500)
+    }
   }
 
   async function saveSchedule(scheduleId: string) {
@@ -161,9 +227,10 @@ export default function ContentDetailPage() {
           </Card>
 
           <Card title={`กำหนดการโพสต์ (${schedules.length})`}>
-            {schedules.length === 0 ? (
+            {schedules.length === 0 && !addingSchedule && (
               <p className="text-sm text-[var(--muted)]">ยังไม่มีกำหนดการโพสต์</p>
-            ) : (
+            )}
+            {schedules.length > 0 && (
               <div className="flex flex-col gap-3">
                 {schedules.map((s) => {
                   const a = analyticsById[s.id]
@@ -210,6 +277,22 @@ export default function ContentDetailPage() {
                           }`}>
                             {s.status}
                           </span>
+                          {s.post_mode === 'manual' && s.status === 'pending' && (
+                            <button
+                              onClick={() => markAsPosted(s.id)}
+                              className="secondary-button px-3 py-1.5 text-xs font-medium"
+                            >
+                              Mark as Posted
+                            </button>
+                          )}
+                          {s.status === 'failed' && (
+                            <button
+                              onClick={() => retrySchedule(s.id)}
+                              className="secondary-button px-3 py-1.5 text-xs font-medium"
+                            >
+                              Retry
+                            </button>
+                          )}
                         </div>
                       </div>
                       {a && (
@@ -224,6 +307,49 @@ export default function ContentDetailPage() {
                   )
                 })}
               </div>
+            )}
+            {addingSchedule ? (
+              <div className="surface-muted flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+                <select
+                  value={newSched.platform}
+                  onChange={(e) => {
+                    const platform = e.target.value as Platform
+                    setNewSched({ ...newSched, platform, post_mode: AUTO_PLATFORMS.includes(platform) ? 'auto' : 'manual' })
+                  }}
+                  className="input-shell px-3 py-2 text-sm outline-none"
+                >
+                  {PLATFORMS.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="datetime-local"
+                  value={newSched.scheduled_at}
+                  onChange={(e) => setNewSched({ ...newSched, scheduled_at: e.target.value })}
+                  className="input-shell px-3 py-2 text-sm outline-none"
+                />
+                <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${
+                  newSched.post_mode === 'auto' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {newSched.post_mode === 'auto' ? 'Auto (n8n)' : 'Manual'}
+                </span>
+                <div className="flex gap-2 lg:ml-auto">
+                  <button onClick={saveNewSchedule} className="primary-button px-3 py-1.5 text-xs font-semibold">
+                    บันทึก
+                  </button>
+                  <button onClick={() => setAddingSchedule(false)} className="secondary-button px-3 py-1.5 text-xs">
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingSchedule(true)}
+                className="secondary-button px-3 py-1.5 text-sm font-medium text-[var(--brand)]"
+              >
+                + เพิ่มแพลตฟอร์ม
+              </button>
             )}
           </Card>
         </div>
