@@ -214,192 +214,196 @@ export default function PlannerPage() {
             </div>
           </section>
 
-          <section className="planner-filter-card flex-1 min-h-0">
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="planner-filter-grid">
-                  <FilterDropdown
-                    icon={<FilterIcon icon="brand" />}
-                    label="แบรนด์"
-                    value={brandFilter}
-                    onChange={setBrandFilter}
-                    options={[{ value: 'all', label: 'ทั้งหมด' }]}
-                  />
-                  <FilterDropdown
-                    icon={<FilterIcon icon="campaign" />}
-                    label="แคมเปญ"
-                    value={campaignFilter}
-                    onChange={setCampaignFilter}
-                    options={[{ value: 'all', label: 'ทั้งหมด' }, ...campaignOptions]}
-                  />
-                  <FilterDropdown
-                    icon={<FilterIcon icon="platform" />}
-                    label="ช่องทาง"
-                    value={channelFilter}
-                    onChange={(value) => setChannelFilter(value as ChannelFilter)}
-                    options={CHANNEL_DROPDOWN_OPTIONS}
-                  />
-                  <FilterDropdown
-                    icon={<FilterIcon icon="status" />}
-                    label="สถานะเผยแพร่"
-                    value={statusFilter}
-                    onChange={(value) => setStatusFilter(value as 'all' | PublishingStatus)}
-                    options={STATUS_FILTER_OPTIONS}
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <div className="planner-toolbar-group">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBrandFilter('all')
-                        setCampaignFilter('all')
-                        setChannelFilter('all')
-                        setStatusFilter('all')
-                        const now = new Date()
-                        setCurrentDate(now)
-                        setSelectedDay(now.getDate())
-                      }}
-                      className="planner-nav-button text-sm font-medium"
-                    >
-                      รีเซ็ต
-                    </button>
-                    <button type="button" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="planner-nav-button" aria-label="Previous month">
-                      ‹
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date()
-                        setCurrentDate(now)
-                        setSelectedDay(now.getDate())
-                      }}
-                      className="planner-nav-button text-sm font-semibold"
-                    >
-                      วันนี้
-                    </button>
-                    <button type="button" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="planner-nav-button" aria-label="Next month">
-                      ›
-                    </button>
+          <section className="planner-filter-card planner-workspace-card flex-1 min-h-0">
+            <div className="planner-workspace-shell">
+              <div className="planner-controls-row">
+                  <div className="planner-filter-grid">
+                    <FilterDropdown
+                      icon={<FilterIcon icon="brand" />}
+                      label="แบรนด์"
+                      value={brandFilter}
+                      onChange={setBrandFilter}
+                      options={[{ value: 'all', label: 'ทั้งหมด' }]}
+                    />
+                    <FilterDropdown
+                      icon={<FilterIcon icon="campaign" />}
+                      label="แคมเปญ"
+                      value={campaignFilter}
+                      onChange={setCampaignFilter}
+                      options={[{ value: 'all', label: 'ทั้งหมด' }, ...campaignOptions]}
+                    />
+                    <FilterDropdown
+                      icon={<FilterIcon icon="platform" />}
+                      label="ช่องทาง"
+                      value={channelFilter}
+                      onChange={(value) => setChannelFilter(value as ChannelFilter)}
+                      options={CHANNEL_DROPDOWN_OPTIONS}
+                    />
+                    <FilterDropdown
+                      icon={<FilterIcon icon="status" />}
+                      label="สถานะเผยแพร่"
+                      value={statusFilter}
+                      onChange={(value) => setStatusFilter(value as 'all' | PublishingStatus)}
+                      options={STATUS_FILTER_OPTIONS}
+                    />
                   </div>
-                  <FilterDropdown
-                    label="เดือน"
-                    value={String(month)}
-                    onChange={(value) => setCurrentDate(new Date(year, Number(value), 1))}
-                    options={MONTHS_TH.map((label, index) => ({
-                      value: String(index),
-                      label: `${label} ${year + 543}`,
-                    }))}
-                    className="planner-month-dropdown"
-                    menuAlign="right"
-                  />
+
+                  <div className="planner-calendar-controls">
+                    <div className="planner-toolbar-group">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBrandFilter('all')
+                          setCampaignFilter('all')
+                          setChannelFilter('all')
+                          setStatusFilter('all')
+                          const now = new Date()
+                          setCurrentDate(now)
+                          setSelectedDay(now.getDate())
+                        }}
+                        className="planner-nav-button text-sm font-medium"
+                      >
+                        รีเซ็ต
+                      </button>
+                      <button type="button" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="planner-nav-button" aria-label="Previous month">
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date()
+                          setCurrentDate(now)
+                          setSelectedDay(now.getDate())
+                        }}
+                        className="planner-nav-button text-sm font-semibold"
+                      >
+                        วันนี้
+                      </button>
+                      <button type="button" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="planner-nav-button" aria-label="Next month">
+                        ›
+                      </button>
+                    </div>
+                    <FilterDropdown
+                      label="เดือน"
+                      value={String(month)}
+                      onChange={(value) => setCurrentDate(new Date(year, Number(value), 1))}
+                      options={MONTHS_TH.map((label, index) => ({
+                        value: String(index),
+                        label: `${label} ${year + 543}`,
+                      }))}
+                      className="planner-month-dropdown"
+                      menuAlign="right"
+                    />
+                  </div>
+              </div>
+
+              <div className="planner-legend-row">
+                  {STATUS_LEGEND.map((item) => (
+                    <div key={item.status} className="flex items-center gap-2 text-sm text-slate-600">
+                      <span className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="planner-workspace-grid">
+                <div className="planner-calendar-column">
+                <div className="planner-pane-card flex-1 min-h-0 overflow-hidden">
+                  {view === 'calendar' ? (
+                    <>
+                      <div className="grid grid-cols-7 border-b border-[var(--line)] bg-slate-50/80">
+                        {WEEKDAYS.map((day) => (
+                          <div key={day} className="px-4 py-3 text-center text-sm font-medium text-slate-500">{day}</div>
+                        ))}
+                      </div>
+
+                      <div className="planner-calendar-grid">
+                        {Array.from({ length: firstDay }).map((_, index) => (
+                          <div key={`empty-${index}`} className="planner-empty-cell hidden xl:block" />
+                        ))}
+
+                        {Array.from({ length: daysInMonth }).map((_, index) => {
+                          const day = index + 1
+                          const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+                          const isSelected = selectedDay === day
+                          const dayItems = itemsByDay[day] ?? []
+
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => setSelectedDay(day)}
+                              className={`planner-day-cell ${isSelected ? 'planner-day-cell-selected' : ''} ${isToday ? 'planner-day-cell-today' : ''}`}
+                            >
+                              <span className={`planner-day-number ${isToday ? 'planner-day-number-today' : ''}`}>{day}</span>
+                              <div className="flex flex-col gap-2">
+                                {dayItems.slice(0, 3).map((item) => (
+                                  <EventCard key={item.id} item={item} />
+                                ))}
+                                {dayItems.length > 3 && (
+                                  <span className="pl-1 text-[11px] font-medium text-[var(--muted)]">+{dayItems.length - 3} รายการ</span>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+
+                        {Array.from({ length: trailingDays }).map((_, index) => (
+                          <div key={`tail-${index}`} className="planner-empty-cell hidden xl:block" />
+                        ))}
+                      </div>
+                    </>
+                  ) : view === 'kanban' ? (
+                    <KanbanView items={items} loading={loading} />
+                  ) : (
+                    <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
+                  )}
                 </div>
               </div>
 
-              <div className="mt-4 flex shrink-0 flex-wrap items-center gap-5 border-b border-[var(--line)] pb-4">
-                {STATUS_LEGEND.map((item) => (
-                  <div key={item.status} className="flex items-center gap-2 text-sm text-slate-600">
-                    <span className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
-                    <span>{item.label}</span>
-                  </div>
-                ))}
-              </div>
+              <aside className="planner-sidebar">
+                <div className="flex min-h-0 flex-1 flex-col p-4">
+                  <section className="planner-sidebar-section shrink-0 border-b border-[var(--line)] pb-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <h3 className="planner-section-title">โพสต์ถัดไป</h3>
+                      <Link href="/content" className="planner-section-link">ดูทั้งหมด</Link>
+                    </div>
+                    {upcomingItems.length === 0 ? (
+                      <p className="text-sm text-[var(--muted)]">ยังไม่มีโพสต์ที่กำลังจะมาถึง</p>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {upcomingItems.map((item) => (
+                          <PostPreviewCard key={item.id} item={item} compact />
+                        ))}
+                      </div>
+                    )}
+                  </section>
 
-              <div className="planner-pane-card mt-4 flex-1 min-h-0 overflow-hidden">
-                {view === 'calendar' ? (
-                  <>
-                    <div className="grid grid-cols-7 border-b border-[var(--line)] bg-slate-50/80">
-                      {WEEKDAYS.map((day) => (
-                        <div key={day} className="px-4 py-3 text-center text-sm font-medium text-slate-500">{day}</div>
-                      ))}
+                  <section className="planner-sidebar-section flex min-h-0 flex-1 flex-col overflow-hidden pt-4">
+                    <div className="mb-4 shrink-0">
+                      <h3 className="planner-section-title">รายละเอียดวันที่เลือก {selectedLabel}</h3>
+                      <p className="mt-1 text-sm text-[var(--muted)]">เลือกรายการในปฏิทินเพื่อดูรายละเอียดโพสต์ของวันนั้น</p>
                     </div>
 
-                    <div className="planner-calendar-grid">
-                      {Array.from({ length: firstDay }).map((_, index) => (
-                        <div key={`empty-${index}`} className="planner-empty-cell hidden xl:block" />
-                      ))}
-
-                      {Array.from({ length: daysInMonth }).map((_, index) => {
-                        const day = index + 1
-                        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
-                        const isSelected = selectedDay === day
-                        const dayItems = itemsByDay[day] ?? []
-
-                        return (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => setSelectedDay(day)}
-                            className={`planner-day-cell ${isSelected ? 'planner-day-cell-selected' : ''} ${isToday ? 'planner-day-cell-today' : ''}`}
-                          >
-                            <span className={`planner-day-number ${isToday ? 'planner-day-number-today' : ''}`}>{day}</span>
-                            <div className="flex flex-col gap-2">
-                              {dayItems.slice(0, 3).map((item) => (
-                                <EventCard key={item.id} item={item} />
-                              ))}
-                              {dayItems.length > 3 && (
-                                <span className="pl-1 text-[11px] font-medium text-[var(--muted)]">+{dayItems.length - 3} รายการ</span>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
-
-                      {Array.from({ length: trailingDays }).map((_, index) => (
-                        <div key={`tail-${index}`} className="planner-empty-cell hidden xl:block" />
-                      ))}
-                    </div>
-                  </>
-                ) : view === 'kanban' ? (
-                  <KanbanView items={items} loading={loading} />
-                ) : (
-                  <TimelineView items={items} loading={loading} daysInMonth={daysInMonth} year={year} month={month} today={today} />
-                )}
-              </div>
+                    {selectedDayItems.length === 0 ? (
+                      <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์สำหรับวันที่เลือก</div>
+                    ) : (
+                      <div className="flex-1 overflow-y-auto">
+                        <div className="flex flex-col gap-3 pr-1">
+                          {selectedDayItems.map((item) => (
+                            <DayDetailCard key={item.id} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </aside>
+            </div>
             </div>
           </section>
         </div>
       </section>
-
-      <aside className="planner-sidebar">
-        <div className="flex min-h-0 flex-1 flex-col p-4">
-          <section className="planner-sidebar-section shrink-0 border-b border-[var(--line)] pb-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="planner-section-title">โพสต์ถัดไป</h3>
-              <Link href="/content" className="planner-section-link">ดูทั้งหมด</Link>
-            </div>
-            {upcomingItems.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">ยังไม่มีโพสต์ที่กำลังจะมาถึง</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {upcomingItems.map((item) => (
-                  <PostPreviewCard key={item.id} item={item} compact />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="planner-sidebar-section flex min-h-0 flex-1 flex-col overflow-hidden pt-4">
-            <div className="mb-4 shrink-0">
-              <h3 className="planner-section-title">รายละเอียดวันที่เลือก {selectedLabel}</h3>
-              <p className="mt-1 text-sm text-[var(--muted)]">เลือกรายการในปฏิทินเพื่อดูรายละเอียดโพสต์ของวันนั้น</p>
-            </div>
-
-            {selectedDayItems.length === 0 ? (
-              <div className="surface-muted p-4 text-sm text-[var(--muted)]">ไม่มีโพสต์สำหรับวันที่เลือก</div>
-            ) : (
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-3 pr-1">
-                  {selectedDayItems.map((item) => (
-                    <DayDetailCard key={item.id} item={item} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      </aside>
     </div>
   )
 }
@@ -420,7 +424,7 @@ function EventCard({ item }: { item: CalendarItem }) {
 
 function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compact?: boolean }) {
   return (
-    <div className={`planner-list-card ${compact ? 'p-2.5' : 'p-3'}`}>
+    <div className={`planner-list-card ${compact ? 'planner-compact-post-card' : 'p-3'}`}>
       <div className="flex items-start gap-3">
         <div className={`planner-thumb ${compact ? 'planner-mini-thumb' : ''} planner-thumb-soft`}>
           <PlatformIcon platform={item.platform} />
