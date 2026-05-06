@@ -139,6 +139,13 @@ export default function PlannerPage() {
     month: 'short',
     year: 'numeric',
   })
+  const todayItemsCount = items.filter((item) => {
+    const date = new Date(item.scheduled_at)
+    return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()
+  }).length
+  const scheduledCount = items.filter((item) => item.status === 'scheduled').length
+  const reviewCount = items.filter((item) => item.status === 'review').length
+  const publishedCount = items.filter((item) => item.status === 'published').length
 
   return (
     <div className="planner-shell">
@@ -147,7 +154,7 @@ export default function PlannerPage() {
           <section className="planner-header-card shrink-0">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-blue-100 bg-blue-50 text-[var(--brand)]">
+                <div className="planner-title-icon">
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                     <rect x="3" y="5" width="18" height="16" rx="2" />
                     <path d="M16 3v4M8 3v4M3 10h18" />
@@ -173,12 +180,30 @@ export default function PlannerPage() {
                 </Link>
               </div>
             </div>
+            <div className="planner-summary-grid">
+              <div className="planner-summary-card">
+                <span>Today queue</span>
+                <strong>{todayItemsCount}</strong>
+              </div>
+              <div className="planner-summary-card">
+                <span>Scheduled</span>
+                <strong>{scheduledCount}</strong>
+              </div>
+              <div className="planner-summary-card">
+                <span>Review</span>
+                <strong>{reviewCount}</strong>
+              </div>
+              <div className="planner-summary-card">
+                <span>Published</span>
+                <strong>{publishedCount}</strong>
+              </div>
+            </div>
           </section>
 
           <section className="planner-filter-card flex-1 min-h-0">
             <div className="flex h-full min-h-0 flex-col">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="planner-filter-grid">
                   <FilterSelect
                     icon={<FilterIcon icon="brand" />}
                     label="แบรนด์"
@@ -397,8 +422,8 @@ function FilterSelect({
   options: { value: string; label: string }[]
 }) {
   return (
-    <label className="input-shell relative flex items-center gap-3 px-3.5 py-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-slate-50 text-slate-400">
+    <label className="planner-filter-pill input-shell relative flex items-center gap-3 px-3.5 py-2.5">
+      <span className="planner-filter-icon">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
