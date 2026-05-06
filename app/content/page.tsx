@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import type { ContentItem, ContentStatus, Platform, ContentType, Campaign } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
+import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
+import FilterDropdown from '@/components/FilterDropdown'
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   post: 'โพสต์',
@@ -16,6 +18,14 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 
 const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published', 'archived']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
+const statusDotClass: Record<ContentStatus, string> = {
+  draft: 'bg-slate-400',
+  review: 'bg-yellow-400',
+  approved: 'bg-blue-400',
+  scheduled: 'bg-violet-400',
+  published: 'bg-green-400',
+  archived: 'bg-slate-500',
+}
 
 type ContentWithSchedulePlatforms = ContentItem & { platforms: Platform[] }
 
@@ -26,9 +36,9 @@ export default function ContentPage() {
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<ContentStatus | ''>('')
-  const [filterPlatform, setFilterPlatform] = useState<Platform | ''>('')
   const [filterCampaign, setFilterCampaign] = useState<string>('')
   const [filterType, setFilterType] = useState<ContentType | ''>('')
+  const { channelFilter, setChannelFilter } = useChannelFilter()
 
   useEffect(() => {
     async function load() {
@@ -60,7 +70,7 @@ export default function ContentPage() {
 
   const filtered = items.filter((item) => {
     if (filterStatus && item.status !== filterStatus) return false
-    if (filterPlatform && !item.platforms.includes(filterPlatform)) return false
+    if (channelFilter !== 'all' && !item.platforms.includes(channelFilter)) return false
     if (filterCampaign && item.campaign_id !== filterCampaign) return false
     if (filterType && item.content_type !== filterType) return false
     if (search) {
@@ -97,29 +107,22 @@ export default function ContentPage() {
       </section>
 
       <section className="surface-card toolbar-card">
-        <Select
+        <FilterDropdown
           value={filterStatus}
           onChange={(v) => setFilterStatus(v as ContentStatus | '')}
           label="สถานะ"
           options={[
-            { value: '', label: 'ทุกสถานะ' },
-            ...ALL_STATUSES.map((s) => ({ value: s, label: s })),
+            { value: '', label: 'ทุกสถานะ', dotClassName: 'bg-slate-400' },
+            ...ALL_STATUSES.map((s) => ({ value: s, label: s, dotClassName: statusDotClass[s] })),
           ]}
         />
-        <Select
-          value={filterPlatform}
-          onChange={(v) => setFilterPlatform(v as Platform | '')}
-          label="แพลตฟอร์ม"
-          options={[
-            { value: '', label: 'ทุกแพลตฟอร์ม' },
-            { value: 'fb', label: 'Facebook' },
-            { value: 'ig', label: 'Instagram' },
-            { value: 'tiktok', label: 'TikTok' },
-            { value: 'youtube', label: 'YouTube' },
-            { value: 'shopee', label: 'Shopee' },
-          ]}
+        <FilterDropdown
+          value={channelFilter}
+          onChange={(v) => setChannelFilter(v as ChannelFilter)}
+          label="ช่องทาง"
+          options={CHANNEL_OPTIONS.map(({ value, label, dotClassName }) => ({ value, label, dotClassName }))}
         />
-        <Select
+        <FilterDropdown
           value={filterCampaign}
           onChange={(v) => setFilterCampaign(v)}
           label="แคมเปญ"
@@ -128,7 +131,7 @@ export default function ContentPage() {
             ...campaigns.map((c) => ({ value: c.id, label: c.name })),
           ]}
         />
-        <Select
+        <FilterDropdown
           value={filterType}
           onChange={(v) => setFilterType(v as ContentType | '')}
           label="ประเภท"
@@ -137,11 +140,11 @@ export default function ContentPage() {
             ...ALL_CONTENT_TYPES.map((t) => ({ value: t, label: CONTENT_TYPE_LABELS[t] })),
           ]}
         />
-        {(filterStatus || filterPlatform || filterCampaign || filterType || search) && (
+        {(filterStatus || channelFilter !== 'all' || filterCampaign || filterType || search) && (
           <button
             onClick={() => {
               setFilterStatus('')
-              setFilterPlatform('')
+              setChannelFilter('all')
               setFilterCampaign('')
               setFilterType('')
               setSearch('')
@@ -228,35 +231,6 @@ export default function ContentPage() {
         </p>
       </section>
     </>
-  )
-}
-
-function Select({
-  value,
-  onChange,
-  label,
-  options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  label: string
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <div className="input-shell flex items-center gap-2 px-3.5 py-2">
-      <span className="text-xs text-[var(--muted)]">{label}:</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="cursor-pointer border-0 bg-transparent text-sm text-[var(--text)] outline-none"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
   )
 }
 

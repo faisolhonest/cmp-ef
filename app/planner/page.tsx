@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import type { Platform, ContentStatus } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
+import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
+import FilterDropdown, { type FilterDropdownOption } from '@/components/FilterDropdown'
 
 type CalendarItem = {
   id: string
@@ -28,6 +30,19 @@ const STATUS_LEGEND: { status: ContentStatus; label: string; dot: string }[] = [
   { status: 'scheduled', label: 'Scheduled', dot: 'bg-violet-400' },
   { status: 'published', label: 'Published', dot: 'bg-green-400' },
 ]
+const STATUS_FILTER_OPTIONS: FilterDropdownOption[] = [
+  { value: 'all', label: 'ทั้งหมด', dotClassName: 'bg-slate-400' },
+  { value: 'draft', label: 'Draft', dotClassName: 'bg-slate-400' },
+  { value: 'review', label: 'Review', dotClassName: 'bg-yellow-400' },
+  { value: 'approved', label: 'Approved', dotClassName: 'bg-blue-400' },
+  { value: 'scheduled', label: 'Scheduled', dotClassName: 'bg-violet-400' },
+  { value: 'published', label: 'Published', dotClassName: 'bg-green-400' },
+]
+const CHANNEL_DROPDOWN_OPTIONS = CHANNEL_OPTIONS.map(({ value, label, dotClassName }) => ({
+  value,
+  label,
+  dotClassName,
+}))
 
 export default function PlannerPage() {
   const today = new Date()
@@ -38,8 +53,8 @@ export default function PlannerPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [brandFilter, setBrandFilter] = useState('all')
   const [campaignFilter, setCampaignFilter] = useState('all')
-  const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | ContentStatus>('all')
+  const { channelFilter, setChannelFilter } = useChannelFilter()
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -70,7 +85,7 @@ export default function PlannerPage() {
       .lte('scheduled_at', endOfMonth)
       .order('scheduled_at')
 
-    if (platformFilter !== 'all') query = query.eq('platform', platformFilter)
+    if (channelFilter !== 'all') query = query.eq('platform', channelFilter)
     if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
     if (statusFilter !== 'all') query = query.eq('cmp_content_items.status', statusFilter)
 
@@ -100,7 +115,7 @@ export default function PlannerPage() {
     })
 
     return () => { stale = true }
-  }, [campaignFilter, month, platformFilter, statusFilter, year])
+  }, [campaignFilter, channelFilter, month, statusFilter, year])
 
   const itemsByDay = useMemo(() => {
     const grouped: Record<number, CalendarItem[]> = {}
@@ -204,48 +219,33 @@ export default function PlannerPage() {
             <div className="flex h-full min-h-0 flex-col">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
                 <div className="planner-filter-grid">
-                  <FilterSelect
+                  <FilterDropdown
                     icon={<FilterIcon icon="brand" />}
                     label="แบรนด์"
                     value={brandFilter}
                     onChange={setBrandFilter}
                     options={[{ value: 'all', label: 'ทั้งหมด' }]}
                   />
-                  <FilterSelect
+                  <FilterDropdown
                     icon={<FilterIcon icon="campaign" />}
                     label="แคมเปญ"
                     value={campaignFilter}
                     onChange={setCampaignFilter}
                     options={[{ value: 'all', label: 'ทั้งหมด' }, ...campaignOptions]}
                   />
-                  <FilterSelect
+                  <FilterDropdown
                     icon={<FilterIcon icon="platform" />}
                     label="ช่องทาง"
-                    value={platformFilter}
-                    onChange={(value) => setPlatformFilter(value as 'all' | Platform)}
-                    options={[
-                      { value: 'all', label: 'ทั้งหมด' },
-                      { value: 'fb', label: 'Facebook' },
-                      { value: 'ig', label: 'Instagram' },
-                      { value: 'tiktok', label: 'TikTok' },
-                      { value: 'youtube', label: 'YouTube' },
-                      { value: 'shopee', label: 'Shopee' },
-                      { value: 'other', label: 'อื่นๆ' },
-                    ]}
+                    value={channelFilter}
+                    onChange={(value) => setChannelFilter(value as ChannelFilter)}
+                    options={CHANNEL_DROPDOWN_OPTIONS}
                   />
-                  <FilterSelect
+                  <FilterDropdown
                     icon={<FilterIcon icon="status" />}
                     label="สถานะ"
                     value={statusFilter}
                     onChange={(value) => setStatusFilter(value as 'all' | ContentStatus)}
-                    options={[
-                      { value: 'all', label: 'ทั้งหมด' },
-                      { value: 'draft', label: 'Draft' },
-                      { value: 'review', label: 'Review' },
-                      { value: 'approved', label: 'Approved' },
-                      { value: 'scheduled', label: 'Scheduled' },
-                      { value: 'published', label: 'Published' },
-                    ]}
+                    options={STATUS_FILTER_OPTIONS}
                   />
                 </div>
 
@@ -256,7 +256,7 @@ export default function PlannerPage() {
                       onClick={() => {
                         setBrandFilter('all')
                         setCampaignFilter('all')
-                        setPlatformFilter('all')
+                        setChannelFilter('all')
                         setStatusFilter('all')
                         const now = new Date()
                         setCurrentDate(now)
@@ -284,20 +284,17 @@ export default function PlannerPage() {
                       ›
                     </button>
                   </div>
-                  <label className="input-shell relative flex min-w-[138px] items-center gap-2 px-3 py-2.5 text-sm text-slate-700">
-                    <select
-                      value={month}
-                      onChange={(event) => setCurrentDate(new Date(year, Number(event.target.value), 1))}
-                      className="w-full appearance-none bg-transparent pr-5 text-sm font-medium text-slate-700 outline-none"
-                    >
-                      {MONTHS_TH.map((label, index) => (
-                        <option key={label} value={index}>{label} {year + 543}</option>
-                      ))}
-                    </select>
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                      <path d="m7 10 5 5 5-5" />
-                    </svg>
-                  </label>
+                  <FilterDropdown
+                    label="เดือน"
+                    value={String(month)}
+                    onChange={(value) => setCurrentDate(new Date(year, Number(value), 1))}
+                    options={MONTHS_TH.map((label, index) => ({
+                      value: String(index),
+                      label: `${label} ${year + 543}`,
+                    }))}
+                    className="planner-month-dropdown"
+                    menuAlign="right"
+                  />
                 </div>
               </div>
 
@@ -405,43 +402,6 @@ export default function PlannerPage() {
         </div>
       </aside>
     </div>
-  )
-}
-
-function FilterSelect({
-  icon,
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <label className="planner-filter-pill input-shell relative flex items-center gap-3 px-3.5 py-2.5">
-      <span className="planner-filter-icon">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--muted)]">{label}</span>
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="mt-1 w-full appearance-none bg-transparent pr-5 text-sm font-semibold text-slate-800 outline-none"
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-      </span>
-      <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-        <path d="m7 10 5 5 5-5" />
-      </svg>
-    </label>
   )
 }
 

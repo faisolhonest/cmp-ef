@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Platform } from '@/lib/types'
 import PlatformIcon from '@/components/PlatformIcon'
+import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
+import FilterDropdown from '@/components/FilterDropdown'
 
 type AnalyticsRow = {
   id: string
@@ -19,9 +21,9 @@ type AnalyticsRow = {
 export default function AnalyticsPage() {
   const [rows, setRows] = useState<AnalyticsRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterPlatform, setFilterPlatform] = useState<Platform | ''>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const { channelFilter, setChannelFilter } = useChannelFilter()
 
   useEffect(() => {
     async function load() {
@@ -53,7 +55,7 @@ export default function AnalyticsPage() {
   }, [])
 
   const filtered = rows.filter((r) => {
-    if (filterPlatform && r.platform !== filterPlatform) return false
+    if (channelFilter !== 'all' && r.platform !== channelFilter) return false
     if (dateFrom && r.scheduled_at < dateFrom) return false
     if (dateTo && r.scheduled_at > dateTo + 'T23:59:59') return false
     return true
@@ -78,13 +80,12 @@ export default function AnalyticsPage() {
             <p className="mt-2 text-sm text-[var(--muted)]">ผลลัพธ์ของโพสต์ที่เผยแพร่แล้ว</p>
           </div>
           <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
-            <select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value as Platform | '')} className="input-shell px-3.5 py-2 text-sm outline-none">
-              <option value="">ทุกแพลตฟอร์ม</option>
-              <option value="fb">Facebook</option>
-              <option value="ig">Instagram</option>
-              <option value="tiktok">TikTok</option>
-              <option value="youtube">YouTube</option>
-            </select>
+            <FilterDropdown
+              label="ช่องทาง"
+              value={channelFilter}
+              onChange={(value) => setChannelFilter(value as ChannelFilter)}
+              options={CHANNEL_OPTIONS.map(({ value, label, dotClassName }) => ({ value, label, dotClassName }))}
+            />
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-shell px-3.5 py-2 text-sm outline-none" />
             <span className="text-sm text-[var(--muted)]">ถึง</span>
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-shell px-3.5 py-2 text-sm outline-none" />

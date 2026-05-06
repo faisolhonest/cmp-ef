@@ -2,16 +2,17 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { ContentStatus } from '@/lib/types'
+import type { ContentStatus, Platform } from '@/lib/types'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
+import { useChannelFilter } from '@/components/ChannelFilterContext'
 
 type StatCounts = Record<ContentStatus, number>
 
 type UpcomingItem = {
   id: string
   title: string
-  platform: string
+  platform: Platform
   scheduled_at: string
   status: ContentStatus
 }
@@ -21,16 +22,19 @@ export default function DashboardPage() {
   const [todayItems, setTodayItems] = useState<UpcomingItem[]>([])
   const [weekItems, setWeekItems] = useState<UpcomingItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { channelFilter } = useChannelFilter()
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       const now = new Date()
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
       const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
       const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).toISOString()
 
-      const [{ data: contentData }, { data: schedulesData }] = await Promise.all([
-        supabase.from('cmp_content_items').select('status'),
+      const [{ data: contentData }, { data: allSchedulesData }, { data: schedulesData }] = await Promise.all([
+        supabase.from('cmp_content_items').select('id, status'),
+        supabase.from('cmp_schedules').select('content_item_id, platform'),
         supabase
           .from('cmp_schedules')
           .select('id, content_item_id, platform, scheduled_at, cmp_content_items(id, title, status)')
@@ -40,21 +44,35 @@ export default function DashboardPage() {
           .order('scheduled_at'),
       ])
 
+      const relevantContentIds =
+        channelFilter === 'all'
+          ? null
+          : new Set(
+            (allSchedulesData ?? [])
+              .filter((schedule) => schedule.platform === channelFilter)
+              .map((schedule) => schedule.content_item_id)
+          )
       const counts = {} as StatCounts
       for (const item of contentData ?? []) {
+        if (relevantContentIds && !relevantContentIds.has(item.id)) continue
         counts[item.status as ContentStatus] = (counts[item.status as ContentStatus] ?? 0) + 1
       }
       setStats(counts)
 
       const today: UpcomingItem[] = []
       const week: UpcomingItem[] = []
-      for (const s of schedulesData ?? []) {
+      const filteredSchedules =
+        channelFilter === 'all'
+          ? (schedulesData ?? [])
+          : (schedulesData ?? []).filter((schedule) => schedule.platform === channelFilter)
+
+      for (const s of filteredSchedules) {
         const content = Array.isArray(s.cmp_content_items) ? s.cmp_content_items[0] : s.cmp_content_items
         if (!content) continue
         const item: UpcomingItem = {
           id: content.id,
           title: content.title,
-          platform: s.platform,
+          platform: s.platform as Platform,
           scheduled_at: s.scheduled_at,
           status: content.status as ContentStatus,
         }
@@ -66,7 +84,7 @@ export default function DashboardPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [channelFilter])
 
   const statCards = [
     { label: 'ร่าง', key: 'draft' as ContentStatus, tone: 'text-slate-700' },
@@ -147,7 +165,7 @@ function ScheduleList({
               className="surface-muted flex items-center justify-between gap-4 p-4 transition-colors hover:bg-white"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <PlatformIcon platform={item.platform as any} />
+                <PlatformIcon platform={item.platform} />
                 <span className="truncate text-sm font-medium text-slate-900">{item.title}</span>
               </div>
               <div className="flex flex-shrink-0 items-center gap-3">
