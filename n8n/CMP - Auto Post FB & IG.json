@@ -1,0 +1,2963 @@
+{
+  "name": "CMP - Auto Post FB & IG",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "6cf63a69-2d82-452e-89d4-1c415c4b5ec8",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1312,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.id AS schedule_id, s.platform, s.caption_override, s.scheduled_at, c.caption_main, c.asset_ids, c.content_type, (SELECT a.url FROM cmp_assets a WHERE a.id = (c.asset_ids[1]) LIMIT 1) AS asset_url, (SELECT a.asset_type FROM cmp_assets a WHERE a.id = (c.asset_ids[1]) LIMIT 1) AS asset_type FROM cmp_schedules s JOIN cmp_content_items c ON c.id = s.content_item_id WHERE s.status = 'pending' AND s.post_mode = 'auto' AND s.platform IN ('fb', 'ig') AND s.scheduled_at BETWEEN now() - interval '5 minutes' AND now() + interval '5 minutes'",
+        "options": {}
+      },
+      "id": "80f28e58-f25b-46bf-9c1e-8ee95768a466",
+      "name": "Get Pending Schedules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1088,
+        -496
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "gWamWGCS0RNtudXZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.schedule_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "e26c72b5-2fff-4557-b508-ce4af79a88a1",
+      "name": "Has Records?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -864,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "caption",
+              "value": "={{ $json.caption_override ? $json.caption_override : $json.caption_main }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "schedule_id",
+              "value": "={{ $json.schedule_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "asset_url",
+              "value": "={{ $json.asset_url }}",
+              "type": "string"
+            },
+            {
+              "id": "f4",
+              "name": "asset_type",
+              "value": "={{ $json.asset_type }}",
+              "type": "string"
+            },
+            {
+              "id": "f5",
+              "name": "platform",
+              "value": "={{ $json.platform }}",
+              "type": "string"
+            },
+            {
+              "id": "f6",
+              "name": "content_type",
+              "value": "={{ $json.content_type }}",
+              "type": "string"
+            },
+            {
+              "id": "f7",
+              "name": "graph_api_version",
+              "value": "v19.0",
+              "type": "string"
+            },
+            {
+              "id": "f8",
+              "name": "fb_page_id",
+              "value": "YOUR_PAGE_ID",
+              "type": "string"
+            },
+            {
+              "id": "f9",
+              "name": "ig_account_id",
+              "value": "YOUR_IG_ACCOUNT_ID",
+              "type": "string"
+            },
+            {
+              "id": "f10",
+              "name": "page_access_token",
+              "value": "YOUR_PAGE_ACCESS_TOKEN",
+              "type": "string"
+            },
+            {
+              "id": "f11",
+              "name": "post_format",
+              "value": "={{ $json.content_type === 'reel' ? 'reel' : ($json.content_type === 'story' ? 'story' : ($json.content_type === 'video' ? 'video' : ($json.asset_type || 'text'))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42fb40e9-bd29-4e31-a381-8d9945dce04e",
+      "name": "Prepare Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ (($json.asset_url && $json.asset_type) || ($json.platform === 'fb' && $json.post_format === 'text' && $json.caption)) ? 'ok' : 'missing' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "3232921c-3b0f-40dc-b0ec-b85c6f7faebe",
+      "name": "Asset OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -416,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE cmp_schedules SET status = 'incomplete', updated_at = now() WHERE id = $1",
+        "options": {
+          "queryReplacement": "={{ $json.schedule_id }}"
+        }
+      },
+      "id": "9efac68c-f672-4049-a3e9-95821adaf951",
+      "name": "Mark Incomplete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -192,
+        -400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "gWamWGCS0RNtudXZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.platform }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "fb"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "fb"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.platform }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "ig"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ig"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af48855f-8718-4703-bfdf-c4642a733a8c",
+      "name": "Route by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -192,
+        -592
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "image"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "video"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "reel"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "reel"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "story"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "story"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "text"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "text_only"
+        }
+      },
+      "id": "b0b57046-b94c-4411-bfbc-f4b7dd1ca43b",
+      "name": "FB: Route by Asset Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -1024
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/photos' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "869dd315-1fd3-4f76-a8d2-a469136bf1e0",
+      "name": "FB: Post Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        496,
+        -1392
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.post_format === 'text' && $json.content_type === 'post' && $json.caption) ? 'ok' : 'error' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f4cd876d-47a2-4812-b77d-75197a4f1cdb",
+      "name": "FB: Text Post OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        496,
+        -1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/feed' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "dccc060d-47f9-4bc8-93a0-faa7584b7bc7",
+      "name": "FB: Post Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        -1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph-video.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/videos' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "description",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "published",
+              "value": "true"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "02b67788-7f63-4078-8ef2-4a8dcff31b3c",
+      "name": "FB: Post Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        496,
+        -1008
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/video_reels' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "upload_phase",
+              "value": "start"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "6b418a54-ff3d-4e3a-9dc6-ea4a2b3d4711",
+      "name": "FB: Start Reel Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        496,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c19475fb-98d5-46a4-98b9-a7dee5fe7db2",
+      "name": "FB: Reel Start OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.upload_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'OAuth ' + $('Prepare Fields').item.json.page_access_token }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n CMP Auto Post"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "8e16eba7-6ef8-4989-8517-a4abd0f4ac33",
+      "name": "FB: Upload Hosted Reel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "3d9aaa8e-a6ba-4b6a-b03d-d57ab9eb5167",
+      "name": "FB: Reel Upload OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1216,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/video_reels' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            },
+            {
+              "name": "video_id",
+              "value": "={{ $('FB: Start Reel Upload').item.json.video_id }}"
+            },
+            {
+              "name": "upload_phase",
+              "value": "finish"
+            },
+            {
+              "name": "video_state",
+              "value": "PUBLISHED"
+            },
+            {
+              "name": "description",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "cbad8842-02eb-4745-887a-89cae903037c",
+      "name": "FB: Publish Reel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1456,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "54144d27-c016-4b54-b911-4b8771cf3ab9",
+      "name": "FB: Reel Publish OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1696,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "nr1",
+              "name": "id",
+              "value": "={{ $('FB: Start Reel Upload').item.json.video_id }}",
+              "type": "string"
+            },
+            {
+              "id": "nr2",
+              "name": "post_id",
+              "value": "={{ $('FB: Start Reel Upload').item.json.video_id }}",
+              "type": "string"
+            },
+            {
+              "id": "nr3",
+              "name": "success",
+              "value": "={{ $json.success }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03764039-593c-4356-b2f5-44d2e37381ed",
+      "name": "FB: Normalize Reel Publish ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1936,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ (/\\.(mp4|mov|m4v|webm|avi|mkv)(\\?|#|$)/i.test($json.asset_url || '') ? 'video' : 'image') }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "video"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ (/\\.(mp4|mov|m4v|webm|avi|mkv)(\\?|#|$)/i.test($json.asset_url || '') ? 'video' : 'image') }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "image"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10ff4176-0cc2-4a6a-a31e-7c821d716ba9",
+      "name": "FB: Story Media Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        -544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/photos' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "published",
+              "value": "false"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "d6df39d7-5b42-4bb4-8033-66cb1918b97a",
+      "name": "FB: Upload Story Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "6f0f4d9b-8d07-490e-a0b0-cf67453214d3",
+      "name": "FB: Story Photo Upload OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/photo_stories' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "photo_id",
+              "value": "={{ $json.photo_id || $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "7068fd7d-3ef4-4248-85be-9a860da3fdc4",
+      "name": "FB: Publish Photo Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1216,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/video_stories' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "upload_phase",
+              "value": "start"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "018a043e-961b-40b4-9895-5eadc680e879",
+      "name": "FB: Start Video Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "ef6588e6-f03c-4718-a212-f30f2fa78ab0",
+      "name": "FB: Video Story Start OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.upload_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'OAuth ' + $('Prepare Fields').item.json.page_access_token }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n CMP Auto Post"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "e77c4305-0915-4765-a8d8-6e818201ad73",
+      "name": "FB: Upload Hosted Video Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1216,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "b3c7898d-17bc-435b-99b8-e6b8ae51914c",
+      "name": "FB: Video Story Upload OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1456,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.fb_page_id + '/video_stories' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "upload_phase",
+              "value": "finish"
+            },
+            {
+              "name": "video_id",
+              "value": "={{ $('FB: Start Video Story').item.json.video_id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "3d3c8a52-2a1c-4574-b710-de1397589d3e",
+      "name": "FB: Publish Video Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1696,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.video_id || $json.upload_url || $json.id || $json.post_id || $json.success) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "0dcc7d07-5c2e-4659-9ba3-d8700a6975ab",
+      "name": "FB: Video Story Publish OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1936,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "nvs1",
+              "name": "id",
+              "value": "={{ $json.post_id || $('FB: Start Video Story').item.json.video_id }}",
+              "type": "string"
+            },
+            {
+              "id": "nvs2",
+              "name": "post_id",
+              "value": "={{ $json.post_id || $('FB: Start Video Story').item.json.video_id }}",
+              "type": "string"
+            },
+            {
+              "id": "nvs3",
+              "name": "success",
+              "value": "={{ $json.success }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2c9f6026-853f-4596-8014-34b57c8d068c",
+      "name": "FB: Normalize Video Story ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2176,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "image"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "video"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "reel"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "reel"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.post_format }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "story"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "story"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unsupported"
+        }
+      },
+      "id": "07191920-830c-4653-b5f2-0627ac73b429",
+      "name": "IG: Route by Asset Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.ig_account_id + '/media' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "00709f08-72fb-4c10-8e94-69aceb4f717a",
+      "name": "IG: Create Image Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        496,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.ig_account_id + '/media' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Prepare Fields').item.json.caption }}"
+            },
+            {
+              "name": "media_type",
+              "value": "REELS"
+            },
+            {
+              "name": "share_to_feed",
+              "value": "true"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a4d6973d-4eab-452c-a67f-adcad4c47528",
+      "name": "IG: Create Reel Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        496,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ (/\\.(mp4|mov|m4v|webm|avi|mkv)(\\?|#|$)/i.test($json.asset_url || '') ? 'video' : 'image') }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "video"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ (/\\.(mp4|mov|m4v|webm|avi|mkv)(\\?|#|$)/i.test($json.asset_url || '') ? 'video' : 'image') }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "image"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f74dee97-0062-4a60-8876-9347450c2fd4",
+      "name": "IG: Story Media Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.ig_account_id + '/media' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "media_type",
+              "value": "STORIES"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "bd14cbad-63cb-4ba4-af4e-74c0fa2e58b1",
+      "name": "IG: Create Story Image Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.ig_account_id + '/media' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $('Prepare Fields').item.json.asset_url }}"
+            },
+            {
+              "name": "media_type",
+              "value": "STORIES"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "5b297a11-7a11-4a24-b3e5-0b2aa3a9e9c0",
+      "name": "IG: Create Story Video Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "iu1",
+              "name": "error_message",
+              "value": "={{ 'Unsupported Instagram post_format: ' + ($json.post_format || 'missing') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "78e9a839-9f7b-4a0a-9ad5-35806eb51c60",
+      "name": "IG: Unsupported Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : ($json.id ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "80063daa-3612-4c92-94e2-8db0f1c276f6",
+      "name": "IG: Container Created?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "289df732-b3e9-4165-8cea-f07d778062e7",
+      "name": "IG: Wait Before Status Check 1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $json.id + '?fields=status_code,status&access_token=' + encodeURIComponent($('Prepare Fields').item.json.page_access_token) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "84603e89-e7c0-456f-82db-7b0c0acb59d2",
+      "name": "IG: Check Container Status 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "FINISHED"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "9e44e7ba-8ff8-4d1c-8d33-03e691ba0d2a",
+      "name": "IG: Container Finished? 1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ERROR"
+            },
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "EXPIRED"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "4334d42f-f1d3-4ac6-8917-7f6dddfab7da",
+      "name": "IG: Container Failed? 1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        152
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "ea4d2cec-3d84-4222-b014-bfbb23909006",
+      "name": "IG: Wait Before Status Check 2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $json.id + '?fields=status_code,status&access_token=' + encodeURIComponent($('Prepare Fields').item.json.page_access_token) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "aad12751-2825-4309-9c40-5eeda98f1802",
+      "name": "IG: Check Container Status 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "FINISHED"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "cc5d0ed0-6ab7-4ea3-aa98-7f1fa2c022a6",
+      "name": "IG: Container Finished? 2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ERROR"
+            },
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "EXPIRED"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c3110817-46d5-4cdc-96c9-5b9a21f6d6c3",
+      "name": "IG: Container Failed? 2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        328
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "006b7219-4b01-4c36-b5e5-49a7777d8dbe",
+      "name": "IG: Wait Before Status Check 3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $json.id + '?fields=status_code,status&access_token=' + encodeURIComponent($('Prepare Fields').item.json.page_access_token) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "32b92a93-1ac1-4d85-9664-a6cc537cff4f",
+      "name": "IG: Check Container Status 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "FINISHED"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "894323a7-aebb-41c5-aef6-393b978e4d4e",
+      "name": "IG: Container Finished? 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ERROR"
+            },
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "EXPIRED"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "5cb596cb-084b-488a-ae6d-f40998133ecc",
+      "name": "IG: Container Failed? 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        504
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "4af0ab3a-fcc9-4682-950f-67842971eeee",
+      "name": "IG: Wait Before Status Check 4",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $json.id + '?fields=status_code,status&access_token=' + encodeURIComponent($('Prepare Fields').item.json.page_access_token) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "8403b3fa-ae6e-4e1d-8954-b9018c9988de",
+      "name": "IG: Check Container Status 4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "FINISHED"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "931ead46-6de6-4d6f-8786-cbd14e2e0cf6",
+      "name": "IG: Container Finished? 4",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ERROR"
+            },
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "EXPIRED"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "ecb973de-bd79-46e8-afee-4100acd7c680",
+      "name": "IG: Container Failed? 4",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "8cb10f0b-a138-4c27-ae64-851b551dda8c",
+      "name": "IG: Wait Before Status Check 5",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $json.id + '?fields=status_code,status&access_token=' + encodeURIComponent($('Prepare Fields').item.json.page_access_token) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "265b2f87-3972-46fa-876a-f399dc056fb5",
+      "name": "IG: Check Container Status 5",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "FINISHED"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "691a01d5-5da7-4a4e-aee5-5ddf2988ae06",
+      "name": "IG: Container Finished? 5",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ERROR"
+            },
+            {
+              "leftValue": "={{ $json.error ? 'ERROR' : (($json.status_code || $json.status || '').toString().toUpperCase()) }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "EXPIRED"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "32a25e5f-a935-42dd-ad37-f6596704fb36",
+      "name": "IG: Container Failed? 5",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        856
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $('Prepare Fields').item.json.graph_api_version + '/' + $('Prepare Fields').item.json.ig_account_id + '/media_publish' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Prepare Fields').item.json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "cd0cec64-8bae-4864-8f84-3979399cf147",
+      "name": "IG: Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1968,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error ? 'error' : (($json.post_id || $json.id) ? 'ok' : 'error') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ok"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "06222ab1-ed99-418c-81aa-41fb671d4fec",
+      "name": "Meta Publish OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2416,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE cmp_schedules SET status = 'auto_posted', platform_post_id = $1, posted_at = now(), updated_at = now() WHERE id = $2",
+        "options": {
+          "queryReplacement": "={{ [($json.post_id || $json.id), $('Prepare Fields').item.json.schedule_id] }}"
+        }
+      },
+      "id": "01e6d0ae-468c-48b7-822f-bea9012765f1",
+      "name": "Update Status auto_posted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2656,
+        -912
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "gWamWGCS0RNtudXZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE cmp_schedules SET status = 'failed', notes = $1, updated_at = now() WHERE id = $2",
+        "options": {
+          "queryReplacement": "={{ [($json.error_message || $json.error?.error_user_msg || $json.error?.message || $json.error?.error_user_title || $json.status_code || $json.status?.video_status || $json.status || JSON.stringify($json)), $('Prepare Fields').item.json.schedule_id] }}"
+        }
+      },
+      "id": "978df99e-48ba-4afb-b5bb-36e79f0795a9",
+      "name": "Mark Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2656,
+        -672
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "gWamWGCS0RNtudXZ",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Schedules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Schedules": {
+      "main": [
+        [
+          {
+            "node": "Has Records?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Records?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Fields": {
+      "main": [
+        [
+          {
+            "node": "Asset OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asset OK?": {
+      "main": [
+        [
+          {
+            "node": "Route by Platform",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Incomplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Platform": {
+      "main": [
+        [
+          {
+            "node": "FB: Route by Asset Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Route by Asset Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Route by Asset Type": {
+      "main": [
+        [
+          {
+            "node": "FB: Post Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Post Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Start Reel Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Story Media Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Text Post OK?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Text Post OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Post Image": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Post Text": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Post Video": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Start Reel Upload": {
+      "main": [
+        [
+          {
+            "node": "FB: Reel Start OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Reel Start OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Upload Hosted Reel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Upload Hosted Reel": {
+      "main": [
+        [
+          {
+            "node": "FB: Reel Upload OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Reel Upload OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Publish Reel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Publish Reel": {
+      "main": [
+        [
+          {
+            "node": "FB: Reel Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Reel Publish OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Normalize Reel Publish ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Normalize Reel Publish ID": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Story Media Type": {
+      "main": [
+        [
+          {
+            "node": "FB: Start Video Story",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FB: Upload Story Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Upload Story Photo": {
+      "main": [
+        [
+          {
+            "node": "FB: Story Photo Upload OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Story Photo Upload OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Publish Photo Story",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Publish Photo Story": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Start Video Story": {
+      "main": [
+        [
+          {
+            "node": "FB: Video Story Start OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Video Story Start OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Upload Hosted Video Story",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Upload Hosted Video Story": {
+      "main": [
+        [
+          {
+            "node": "FB: Video Story Upload OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Video Story Upload OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Publish Video Story",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Publish Video Story": {
+      "main": [
+        [
+          {
+            "node": "FB: Video Story Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Video Story Publish OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Normalize Video Story ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Normalize Video Story ID": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Route by Asset Type": {
+      "main": [
+        [
+          {
+            "node": "IG: Create Image Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Create Reel Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Create Reel Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Story Media Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Unsupported Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Create Image Container": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Create Reel Container": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Story Media Type": {
+      "main": [
+        [
+          {
+            "node": "IG: Create Story Video Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Create Story Image Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Create Story Image Container": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Create Story Video Container": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Unsupported Format": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Created?": {
+      "main": [
+        [
+          {
+            "node": "IG: Wait Before Status Check 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Wait Before Status Check 1": {
+      "main": [
+        [
+          {
+            "node": "IG: Check Container Status 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Check Container Status 1": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Finished? 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Finished? 1": {
+      "main": [
+        [
+          {
+            "node": "IG: Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Container Failed? 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Failed? 1": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Wait Before Status Check 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Wait Before Status Check 2": {
+      "main": [
+        [
+          {
+            "node": "IG: Check Container Status 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Check Container Status 2": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Finished? 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Finished? 2": {
+      "main": [
+        [
+          {
+            "node": "IG: Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Container Failed? 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Failed? 2": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Wait Before Status Check 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Wait Before Status Check 3": {
+      "main": [
+        [
+          {
+            "node": "IG: Check Container Status 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Check Container Status 3": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Finished? 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Finished? 3": {
+      "main": [
+        [
+          {
+            "node": "IG: Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Container Failed? 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Failed? 3": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Wait Before Status Check 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Wait Before Status Check 4": {
+      "main": [
+        [
+          {
+            "node": "IG: Check Container Status 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Check Container Status 4": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Finished? 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Finished? 4": {
+      "main": [
+        [
+          {
+            "node": "IG: Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Container Failed? 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Failed? 4": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Wait Before Status Check 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Wait Before Status Check 5": {
+      "main": [
+        [
+          {
+            "node": "IG: Check Container Status 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Check Container Status 5": {
+      "main": [
+        [
+          {
+            "node": "IG: Container Finished? 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Finished? 5": {
+      "main": [
+        [
+          {
+            "node": "IG: Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG: Container Failed? 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Container Failed? 5": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG: Publish": {
+      "main": [
+        [
+          {
+            "node": "Meta Publish OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Publish OK?": {
+      "main": [
+        [
+          {
+            "node": "Update Status auto_posted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB: Text Post OK?": {
+      "main": [
+        [
+          {
+            "node": "FB: Post Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "3a16874b-d735-4464-87a3-d886f1770a1b",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4e70d61ccb0b0febfa690df56ee3c212d723e01d21326e2f70e8ac1308506c29"
+  },
+  "id": "ClAMG4GeCjw95Tjy",
+  "tags": []
+}

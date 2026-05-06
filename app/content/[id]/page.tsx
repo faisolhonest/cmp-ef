@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { ContentItemWithRelations, Schedule, PostAnalytics, ContentStatus, Platform, PostMode } from '@/lib/types'
+import { getPublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 
@@ -162,6 +163,7 @@ export default function ContentDetailPage() {
   if (!item) return null
 
   const analyticsById = Object.fromEntries(analytics.map((a) => [a.schedule_id, a]))
+  const publishingStatus = getPublishingStatus(schedules)
 
   return (
     <>
@@ -184,20 +186,28 @@ export default function ContentDetailPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-[var(--muted)]">สถานะ</label>
-            <div className="input-shell flex items-center gap-2 px-3 py-2">
-              <StatusBadge status={item.status} />
-              <select
-                value={item.status}
-                disabled={updating}
-                onChange={(e) => updateStatus(e.target.value as ContentStatus)}
-                className="cursor-pointer border-0 bg-transparent text-sm font-medium text-[var(--text)] outline-none disabled:opacity-50"
-              >
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                ))}
-              </select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--muted)]">Publishing</label>
+              <div className="input-shell flex items-center gap-2 px-3 py-2">
+                <StatusBadge status={publishingStatus} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-[var(--muted)]">Workflow</label>
+              <div className="input-shell flex items-center gap-2 px-3 py-2">
+                <StatusBadge status={item.status} />
+                <select
+                  value={item.status}
+                  disabled={updating}
+                  onChange={(e) => updateStatus(e.target.value as ContentStatus)}
+                  className="cursor-pointer border-0 bg-transparent text-sm font-medium text-[var(--text)] outline-none disabled:opacity-50"
+                >
+                  {ALL_STATUSES.map((s) => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -357,7 +367,10 @@ export default function ContentDetailPage() {
         <div className="flex flex-col gap-4">
           <Card title="รายละเอียด">
             <InfoRow label="ID" value={item.id.slice(0, 8) + '...'} />
-            <InfoRow label="สถานะ">
+            <InfoRow label="Publishing">
+              <StatusBadge status={publishingStatus} />
+            </InfoRow>
+            <InfoRow label="Workflow">
               <StatusBadge status={item.status} />
             </InfoRow>
             <InfoRow label="แคมเปญ" value={(item.campaign as any)?.name ?? 'ไม่ระบุ'} />

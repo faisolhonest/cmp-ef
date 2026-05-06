@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { ContentItem, ContentStatus, Platform, ContentType, Campaign } from '@/lib/types'
+import type { ContentItem, PublishingStatus, ScheduleStatus, Platform, ContentType, Campaign } from '@/lib/types'
+import { getPublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
@@ -16,18 +17,19 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   live_teaser: 'Live Teaser',
 }
 
-const ALL_STATUSES: ContentStatus[] = ['draft', 'review', 'approved', 'scheduled', 'published', 'archived']
+const PUBLISHING_STATUSES: PublishingStatus[] = ['draft', 'scheduled', 'published', 'failed']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
-const statusDotClass: Record<ContentStatus, string> = {
+const statusDotClass: Record<PublishingStatus, string> = {
   draft: 'bg-slate-400',
-  review: 'bg-yellow-400',
-  approved: 'bg-blue-400',
   scheduled: 'bg-violet-400',
   published: 'bg-green-400',
-  archived: 'bg-slate-500',
+  failed: 'bg-red-400',
 }
 
-type ContentWithSchedulePlatforms = ContentItem & { platforms: Platform[] }
+type ContentWithSchedulePlatforms = ContentItem & {
+  platforms: Platform[]
+  publishingStatus: PublishingStatus
+}
 
 export default function ContentPage() {
   const [items, setItems] = useState<ContentWithSchedulePlatforms[]>([])
@@ -35,7 +37,7 @@ export default function ContentPage() {
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<ContentStatus | ''>('')
+  const [filterStatus, setFilterStatus] = useState<PublishingStatus | ''>('')
   const [filterCampaign, setFilterCampaign] = useState<string>('')
   const [filterType, setFilterType] = useState<ContentType | ''>('')
   const { channelFilter, setChannelFilter } = useChannelFilter()
@@ -44,22 +46,26 @@ export default function ContentPage() {
     async function load() {
       const [{ data: contentData }, { data: schedulesData }, { data: campaignData }] = await Promise.all([
         supabase.from('cmp_content_items').select('*').order('created_at', { ascending: false }),
-        supabase.from('cmp_schedules').select('content_item_id, platform'),
+        supabase.from('cmp_schedules').select('content_item_id, platform, status'),
         supabase.from('cmp_campaigns').select('*').eq('status', 'active').order('name'),
       ])
 
       const platformsByItem: Record<string, Platform[]> = {}
+      const schedulesByItem: Record<string, { status: ScheduleStatus }[]> = {}
       for (const s of schedulesData ?? []) {
         if (!platformsByItem[s.content_item_id]) platformsByItem[s.content_item_id] = []
         if (!platformsByItem[s.content_item_id].includes(s.platform as Platform)) {
           platformsByItem[s.content_item_id].push(s.platform as Platform)
         }
+        if (!schedulesByItem[s.content_item_id]) schedulesByItem[s.content_item_id] = []
+        schedulesByItem[s.content_item_id].push({ status: s.status as ScheduleStatus })
       }
 
       setItems(
         (contentData ?? []).map((item) => ({
           ...item,
           platforms: platformsByItem[item.id] ?? [],
+          publishingStatus: getPublishingStatus(schedulesByItem[item.id] ?? []),
         }))
       )
       setCampaigns(campaignData ?? [])
@@ -69,7 +75,7 @@ export default function ContentPage() {
   }, [])
 
   const filtered = items.filter((item) => {
-    if (filterStatus && item.status !== filterStatus) return false
+    if (filterStatus && item.publishingStatus !== filterStatus) return false
     if (channelFilter !== 'all' && !item.platforms.includes(channelFilter)) return false
     if (filterCampaign && item.campaign_id !== filterCampaign) return false
     if (filterType && item.content_type !== filterType) return false
@@ -109,11 +115,11 @@ export default function ContentPage() {
       <section className="surface-card toolbar-card">
         <FilterDropdown
           value={filterStatus}
-          onChange={(v) => setFilterStatus(v as ContentStatus | '')}
-          label="สถานะ"
+          onChange={(v) => setFilterStatus(v as PublishingStatus | '')}
+          label="สถานะเผยแพร่"
           options={[
             { value: '', label: 'ทุกสถานะ', dotClassName: 'bg-slate-400' },
-            ...ALL_STATUSES.map((s) => ({ value: s, label: s, dotClassName: statusDotClass[s] })),
+            ...PUBLISHING_STATUSES.map((s) => ({ value: s, label: s, dotClassName: statusDotClass[s] })),
           ]}
         />
         <FilterDropdown
@@ -199,7 +205,7 @@ export default function ContentPage() {
                       </div>
                     </td>
                     <td className="py-4 pr-4">
-                      <StatusBadge status={item.status} />
+                      <StatusBadge status={item.publishingStatus} />
                     </td>
                     <td className="py-4 text-[var(--muted)]">
                       <div className="flex items-center justify-between gap-3">
