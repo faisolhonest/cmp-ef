@@ -4,6 +4,7 @@ export type PublishingStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 
 export type Platform = 'fb' | 'ig' | 'tiktok' | 'youtube' | 'shopee' | 'other'
 export type PostMode = 'auto' | 'manual'
 export type ContentType = 'post' | 'reel' | 'story' | 'video' | 'live_teaser'
+export type AssetType = 'image' | 'video' | 'reel' | 'story' | 'other'
 export type CampaignStatus = 'active' | 'archived'
 
 export interface Campaign {
@@ -17,9 +18,12 @@ export interface Campaign {
 
 export interface Asset {
   id: string
-  file_name: string
-  file_url: string
-  file_type: string
+  name: string
+  asset_type: AssetType
+  url: string
+  thumbnail_url: string | null
+  tags: string[] | null
+  notes: string | null
   created_at: string
 }
 
@@ -31,7 +35,7 @@ export interface ContentItem {
   caption_main: string | null
   tags: string[] | null
   status: ContentStatus
-  asset_id: string | null
+  asset_ids: string[] | null
   created_at: string
   updated_at: string
 }
@@ -50,6 +54,9 @@ export interface Schedule {
   post_mode: PostMode
   status: ScheduleStatus
   platform_post_id: string | null
+  posted_at: string | null
+  n8n_job_id: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
