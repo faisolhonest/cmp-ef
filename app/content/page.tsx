@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { ContentItem, PublishingStatus, ScheduleStatus, Platform, ContentType, Campaign } from '@/lib/types'
-import { getPublishingStatus } from '@/lib/publishingStatus'
+import type { ContentItem, ScheduleStatus, Platform, ContentType, Campaign } from '@/lib/types'
+import { getPublishingStatus, type DisplayPublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
 import { CHANNEL_OPTIONS, useChannelFilter, type ChannelFilter } from '@/components/ChannelFilterContext'
@@ -17,19 +17,28 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   live_teaser: 'Live Teaser',
 }
 
-const PUBLISHING_STATUSES: PublishingStatus[] = ['draft', 'scheduled', 'published', 'failed', 'incomplete']
+const PUBLISHING_STATUSES: DisplayPublishingStatus[] = ['draft', 'scheduled', 'published', 'failed', 'incomplete', 'archived']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
-const statusDotClass: Record<PublishingStatus, string> = {
+const statusDotClass: Record<DisplayPublishingStatus, string> = {
   draft: 'bg-slate-400',
   scheduled: 'bg-violet-400',
   published: 'bg-green-400',
   failed: 'bg-red-400',
   incomplete: 'bg-amber-400',
+  archived: 'bg-slate-500',
+}
+const statusFilterLabels: Record<DisplayPublishingStatus, string> = {
+  draft: 'ยังไม่กำหนด',
+  scheduled: 'กำหนดแล้ว',
+  published: 'เผยแพร่แล้ว',
+  failed: 'โพสต์ไม่สำเร็จ',
+  incomplete: 'ข้อมูลไม่ครบ',
+  archived: 'เก็บถาวร',
 }
 
 type ContentWithSchedulePlatforms = ContentItem & {
   platforms: Platform[]
-  publishingStatus: PublishingStatus
+  publishingStatus: DisplayPublishingStatus
 }
 
 export default function ContentPage() {
@@ -38,7 +47,7 @@ export default function ContentPage() {
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<PublishingStatus | ''>('')
+  const [filterStatus, setFilterStatus] = useState<DisplayPublishingStatus | ''>('')
   const [filterCampaign, setFilterCampaign] = useState<string>('')
   const [filterType, setFilterType] = useState<ContentType | ''>('')
   const { channelFilter, setChannelFilter } = useChannelFilter()
@@ -66,7 +75,7 @@ export default function ContentPage() {
         (contentData ?? []).map((item) => ({
           ...item,
           platforms: platformsByItem[item.id] ?? [],
-          publishingStatus: getPublishingStatus(schedulesByItem[item.id] ?? []),
+          publishingStatus: getPublishingStatus(schedulesByItem[item.id] ?? [], item.status),
         }))
       )
       setCampaigns(campaignData ?? [])
@@ -116,11 +125,11 @@ export default function ContentPage() {
       <section className="surface-card toolbar-card">
         <FilterDropdown
           value={filterStatus}
-          onChange={(v) => setFilterStatus(v as PublishingStatus | '')}
+          onChange={(v) => setFilterStatus(v as DisplayPublishingStatus | '')}
           label="สถานะเผยแพร่"
           options={[
             { value: '', label: 'ทุกสถานะ', dotClassName: 'bg-slate-400' },
-            ...PUBLISHING_STATUSES.map((s) => ({ value: s, label: s, dotClassName: statusDotClass[s] })),
+            ...PUBLISHING_STATUSES.map((s) => ({ value: s, label: statusFilterLabels[s], dotClassName: statusDotClass[s] })),
           ]}
         />
         <FilterDropdown
@@ -219,11 +228,8 @@ export default function ContentPage() {
                         </span>
                         <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                           <Link href={`/content/${item.id}`} className="rounded-[10px] border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700">
-                            Edit
+                            View
                           </Link>
-                          <button type="button" className="rounded-[10px] border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600">
-                            Delete
-                          </button>
                         </div>
                       </div>
                     </td>

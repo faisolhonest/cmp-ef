@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { AssetType, Campaign, ContentType, Platform, PostMode } from '@/lib/types'
+import AlbumPreviewGrid from '@/components/AlbumPreviewGrid'
 
 const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'fb', label: 'Facebook' },
@@ -14,11 +15,20 @@ const PLATFORMS: { value: Platform; label: string }[] = [
 ]
 
 const AUTO_PLATFORMS: Platform[] = ['fb', 'ig']
-const MEDIA_TYPES: { value: CreateAssetType; label: string }[] = [
+type CreateAssetType = Extract<AssetType, 'image' | 'video' | 'reel' | 'story'>
+type MediaMode = 'text' | CreateAssetType | 'album'
+
+const ALBUM_MIN_IMAGES = 2
+const ALBUM_HELPER_TEXT = 'อัลบั้มต้องมีอย่างน้อย 2 รูป และใช้ URL รูปภาพแบบ https:// เท่านั้น'
+const ALBUM_PREVIEW_NOTE = 'ตัวอย่างใกล้เคียง Facebook จริง การแสดงผลอาจเปลี่ยนตามสัดส่วนรูปและแพลตฟอร์ม'
+
+const MEDIA_TYPES: { value: MediaMode; label: string }[] = [
+  { value: 'text', label: 'Text' },
   { value: 'image', label: 'Image' },
   { value: 'video', label: 'Video' },
   { value: 'reel', label: 'Reel' },
   { value: 'story', label: 'Story' },
+  { value: 'album', label: 'Album' },
 ]
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
@@ -29,16 +39,6 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   live_teaser: 'Live Teaser',
 }
 
-type CreateAssetType = Extract<AssetType, 'image' | 'video' | 'reel' | 'story'>
-
-const CONTENT_TYPE_OPTIONS: { value: ContentType; label: string; description: string }[] = [
-  { value: 'post', label: 'Text', description: 'โพสต์ข้อความ หรือ feed post พร้อมรูป' },
-  { value: 'reel', label: 'Reel', description: 'วิดีโอแนวตั้ง 9:16' },
-  { value: 'story', label: 'Story', description: 'Story 9:16 สำหรับ FB/IG' },
-  { value: 'video', label: 'Video', description: 'วิดีโอ feed / long form' },
-  { value: 'live_teaser', label: 'Live Teaser', description: 'คอนเทนต์โปรโมตไลฟ์' },
-]
-
 type ScheduleRow = {
   platform: Platform
   scheduled_at: string
@@ -46,7 +46,7 @@ type ScheduleRow = {
 }
 
 type MediaForm = {
-  asset_type: CreateAssetType
+  asset_type: MediaMode
   url: string
 }
 
@@ -58,16 +58,21 @@ export default function NewContentPage() {
 
   const [form, setForm] = useState({
     title: '',
-    content_type: 'post' as ContentType,
     caption_main: '',
     tags: '',
     campaign_id: '',
   })
-  const [media, setMedia] = useState<MediaForm>({ asset_type: 'image', url: '' })
+  const [media, setMedia] = useState<MediaForm>({ asset_type: 'text', url: '' })
+  const [albumUrls, setAlbumUrls] = useState<string[]>([])
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
 
+  const isAlbum = media.asset_type === 'album'
+  const isSingleMedia = isSingleAssetMedia(media.asset_type)
+  const selectedContentType = contentTypeForMedia(media.asset_type)
   const mediaUrl = media.url.trim()
-  const mediaUrlError = mediaUrl && !isHttpsUrl(mediaUrl) ? 'กรุณาใช้ URL แบบ https:// ที่เปิดสาธารณะได้' : ''
+  const mediaUrlError = isSingleMedia && mediaUrl && !isHttpsUrl(mediaUrl) ? 'กรุณาใช้ URL แบบ https:// ที่เปิดสาธารณะได้' : ''
+  const albumInputUrls = useMemo(() => albumUrls.map((url) => url.trim()).filter(Boolean), [albumUrls])
+  const albumPreviewUrls = useMemo(() => albumInputUrls.filter(isHttpsUrl), [albumInputUrls])
   const primarySchedule = schedules[0]
   const previewPlatform = primarySchedule?.platform ?? 'fb'
   const parsedTags = useMemo(() => parseTags(form.tags), [form.tags])
@@ -98,30 +103,59 @@ export default function NewContentPage() {
     )
   }
 
-  function updateContentType(content_type: ContentType) {
-    setForm((prev) => ({ ...prev, content_type }))
-    if (content_type === 'reel' || content_type === 'story' || content_type === 'video') {
-      setMedia((prev) => ({ ...prev, asset_type: content_type === 'video' ? 'video' : content_type }))
-    }
+  function updateMediaType(asset_type: MediaMode) {
+    if (asset_type === media.asset_type) return
+    setMedia({ asset_type, url: '' })
+    setAlbumUrls(asset_type === 'album' ? ['', ''] : [])
+    setError('')
   }
 
-  function updateMediaType(asset_type: CreateAssetType) {
-    setMedia((prev) => ({ ...prev, asset_type }))
-    if (asset_type === 'reel' || asset_type === 'story' || asset_type === 'video') {
-      setForm((prev) => ({ ...prev, content_type: asset_type === 'video' ? 'video' : asset_type }))
-    }
+  function updateAlbumUrl(index: number, value: string) {
+    setAlbumUrls((prev) => prev.map((url, i) => i === index ? value : url))
+  }
+
+  function addAlbumUrl() {
+    setAlbumUrls((prev) => [...prev, ''])
+  }
+
+  function removeAlbumUrl(index: number) {
+    setAlbumUrls((prev) => prev.length <= ALBUM_MIN_IMAGES ? prev : prev.filter((_, i) => i !== index))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.title.trim()) { setError('กรุณาใส่ชื่อคอนเทนต์'); return }
-    if (mediaUrlError) { setError(mediaUrlError); return }
+    if (isSingleMedia && !mediaUrl) { setError('กรุณาใส่ Media URL หรือเลือก Text'); return }
+    if (isSingleMedia && mediaUrlError) { setError(mediaUrlError); return }
+    const albumValidation = isAlbum ? validateAlbumUrls(albumUrls) : { urls: [], error: '' }
+    if (albumValidation.error) { setError(albumValidation.error); return }
 
     setSaving(true)
     setError('')
 
     let assetIds: string[] | null = null
-    if (mediaUrl) {
+    if (isAlbum) {
+      const { data: assets, error: assetErr } = await supabase
+        .from('cmp_assets')
+        .insert(
+          albumValidation.urls.map((url, index) => ({
+            name: createAlbumAssetName(form.title, index),
+            asset_type: 'image' as const,
+            url,
+            thumbnail_url: url,
+            tags: parsedTags.length > 0 ? parsedTags : null,
+          }))
+        )
+        .select('id')
+
+      if (assetErr || !assets || assets.length !== albumValidation.urls.length) {
+        setError(assetErr?.message ?? 'บันทึก Album media ไม่สำเร็จ')
+        setSaving(false)
+        return
+      }
+
+      assetIds = assets.map((asset) => asset.id)
+    } else if (isSingleMedia) {
       const { data: asset, error: assetErr } = await supabase
         .from('cmp_assets')
         .insert({
@@ -147,7 +181,7 @@ export default function NewContentPage() {
       .from('cmp_content_items')
       .insert({
         title: form.title.trim(),
-        content_type: form.content_type,
+        content_type: selectedContentType,
         caption_main: form.caption_main.trim() || null,
         asset_ids: assetIds,
         tags: parsedTags.length > 0 ? parsedTags : null,
@@ -158,6 +192,7 @@ export default function NewContentPage() {
       .single()
 
     if (itemErr || !item) {
+      if (assetIds?.length) await cleanupCreatedRows(null, assetIds)
       setError(itemErr?.message ?? 'เกิดข้อผิดพลาด')
       setSaving(false)
       return
@@ -166,7 +201,7 @@ export default function NewContentPage() {
     if (schedules.length > 0) {
       const validSchedules = schedules.filter((s) => s.scheduled_at)
       if (validSchedules.length > 0) {
-        await supabase.from('cmp_schedules').insert(
+        const { error: scheduleErr } = await supabase.from('cmp_schedules').insert(
           validSchedules.map((s) => ({
             content_item_id: item.id,
             platform: s.platform,
@@ -175,6 +210,12 @@ export default function NewContentPage() {
             status: 'pending' as const,
           }))
         )
+        if (scheduleErr) {
+          await cleanupCreatedRows(item.id, assetIds ?? [])
+          setError(scheduleErr.message ?? 'บันทึก schedule ไม่สำเร็จ')
+          setSaving(false)
+          return
+        }
       }
     }
 
@@ -204,24 +245,6 @@ export default function NewContentPage() {
                   placeholder="เช่น โปรโมชั่น 5.5 ลอตสุดท้าย"
                   className="input-shell w-full px-4 py-3 text-sm outline-none"
                 />
-              </Field>
-
-              <Field label="ประเภทคอนเทนต์">
-                <div className="content-type-grid">
-                  {CONTENT_TYPE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={form.content_type === option.value}
-                      data-active={form.content_type === option.value}
-                      onClick={() => updateContentType(option.value)}
-                      className="content-type-card"
-                    >
-                      <span>{option.label}</span>
-                      <small>{option.description}</small>
-                    </button>
-                  ))}
-                </div>
               </Field>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -270,6 +293,37 @@ export default function NewContentPage() {
                 </div>
               </Field>
 
+              {isAlbum ? (
+                <Field label="Public HTTPS image URLs">
+                  <div className="flex flex-col gap-3">
+                    {albumUrls.map((url, index) => (
+                      <div key={index} className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="url"
+                          value={url}
+                          onChange={(e) => updateAlbumUrl(index, e.target.value)}
+                          placeholder={`https://example.com/image-${index + 1}.jpg`}
+                          className="input-shell min-w-0 flex-1 px-4 py-3 text-sm outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeAlbumUrl(index)}
+                          disabled={albumUrls.length <= ALBUM_MIN_IMAGES}
+                          className="secondary-button px-4 py-2.5 text-sm disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs font-medium text-[var(--muted)]">{ALBUM_HELPER_TEXT}</p>
+                      <button type="button" onClick={addAlbumUrl} className="secondary-button w-fit px-4 py-2 text-sm font-medium text-[var(--brand)]">
+                        + Add image
+                      </button>
+                    </div>
+                  </div>
+                </Field>
+              ) : isSingleMedia ? (
               <Field label="Public HTTPS media URL">
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
@@ -291,22 +345,8 @@ export default function NewContentPage() {
                 </div>
                 {mediaUrlError && <p className="mt-2 text-xs font-medium text-red-600">{mediaUrlError}</p>}
               </Field>
+              ) : null}
 
-              {mediaUrl && !mediaUrlError && (
-                <div className="asset-preview-row">
-                  <MediaFrame
-                    url={mediaUrl}
-                    assetType={media.asset_type}
-                    contentType={form.content_type}
-                    compact
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-950">{MEDIA_TYPES.find((type) => type.value === media.asset_type)?.label}</p>
-                    <p className="mt-1 truncate text-xs text-[var(--muted)]">{mediaUrl}</p>
-                    <p className="mt-3 text-xs font-medium text-emerald-700">พร้อมบันทึกเป็น cmp_assets และเชื่อมกับ asset_ids</p>
-                  </div>
-                </div>
-              )}
             </div>
           </section>
 
@@ -394,16 +434,17 @@ export default function NewContentPage() {
         <aside className="new-content-preview-column">
           <PostPreview
             caption={form.caption_main}
-            contentType={form.content_type}
+            contentType={selectedContentType}
             media={media}
-            mediaUrl={mediaUrl && !mediaUrlError ? mediaUrl : ''}
+            mediaUrl={!isAlbum && mediaUrl && !mediaUrlError ? mediaUrl : ''}
+            albumUrls={isAlbum ? albumPreviewUrls : []}
             platform={previewPlatform}
             schedule={primarySchedule?.scheduled_at ?? ''}
           />
           <PostingSummary
-            contentType={form.content_type}
+            contentType={selectedContentType}
             mediaType={media.asset_type}
-            hasMedia={Boolean(mediaUrl && !mediaUrlError)}
+            albumImageCount={isAlbum ? albumInputUrls.length : 0}
             schedules={schedules}
             tags={parsedTags}
           />
@@ -445,6 +486,7 @@ function PostPreview({
   contentType,
   media,
   mediaUrl,
+  albumUrls,
   platform,
   schedule,
 }: {
@@ -452,9 +494,12 @@ function PostPreview({
   contentType: ContentType
   media: MediaForm
   mediaUrl: string
+  albumUrls: string[]
   platform: Platform
   schedule: string
 }) {
+  const isAlbum = media.asset_type === 'album'
+  const singleAssetType = isSingleAssetMedia(media.asset_type) ? media.asset_type : null
   const isVertical = contentType === 'story' || contentType === 'reel' || media.asset_type === 'story' || media.asset_type === 'reel'
   const isInstagram = platform === 'ig'
   const platformLabel = PLATFORMS.find((p) => p.value === platform)?.label ?? 'Facebook'
@@ -479,19 +524,26 @@ function PostPreview({
           </div>
         </div>
 
-        {isInstagram && mediaUrl ? (
-          <MediaFrame url={mediaUrl} assetType={media.asset_type} contentType={contentType} vertical={isVertical} />
+        {isInstagram && mediaUrl && singleAssetType ? (
+          <MediaFrame url={mediaUrl} assetType={singleAssetType} contentType={contentType} vertical={isVertical} />
         ) : null}
 
         <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{captionText}</p>
 
-        {!isInstagram && mediaUrl ? (
-          <MediaFrame url={mediaUrl} assetType={media.asset_type} contentType={contentType} vertical={isVertical} />
+        {isAlbum && albumUrls.length > 0 ? (
+          <>
+            <AlbumPreviewGrid urls={albumUrls} />
+            <p className="text-xs font-medium text-[var(--muted)]">{ALBUM_PREVIEW_NOTE}</p>
+          </>
         ) : null}
 
-        {!mediaUrl && (
+        {!isInstagram && mediaUrl && singleAssetType ? (
+          <MediaFrame url={mediaUrl} assetType={singleAssetType} contentType={contentType} vertical={isVertical} />
+        ) : null}
+
+        {!mediaUrl && (!isAlbum || albumUrls.length === 0) && (
           <div className={isVertical ? 'post-preview-empty post-preview-empty-vertical' : 'post-preview-empty'}>
-            <span>{CONTENT_TYPE_LABELS[contentType]}</span>
+            <span>{media.asset_type === 'text' ? CONTENT_TYPE_LABELS[contentType] : mediaTypeLabel(media.asset_type)}</span>
           </div>
         )}
 
@@ -508,16 +560,17 @@ function PostPreview({
 function PostingSummary({
   contentType,
   mediaType,
-  hasMedia,
+  albumImageCount,
   schedules,
   tags,
 }: {
   contentType: ContentType
-  mediaType: CreateAssetType
-  hasMedia: boolean
+  mediaType: MediaMode
+  albumImageCount: number
   schedules: ScheduleRow[]
   tags: string[]
 }) {
+  const isAlbum = mediaType === 'album'
   const autoCount = schedules.filter((schedule) => schedule.post_mode === 'auto').length
   const manualCount = schedules.length - autoCount
 
@@ -526,8 +579,9 @@ function PostingSummary({
       <SectionHeader title="Posting Summary" eyebrow="Ready" />
       <div className="flex flex-col gap-3 text-sm">
         <SummaryRow label="ประเภท" value={CONTENT_TYPE_LABELS[contentType]} />
-        <SummaryRow label="Media" value={hasMedia ? mediaTypeLabel(mediaType) : 'ไม่มี'} />
+        <SummaryRow label="Media" value={mediaType === 'text' ? 'ไม่มี' : mediaTypeLabel(mediaType)} />
         <SummaryRow label="กำหนดการ" value={`${schedules.length} แถว`} />
+        {isAlbum && <SummaryRow label="จำนวนรูป" value={`${albumImageCount} รูป`} />}
         <SummaryRow label="Auto / Manual" value={`${autoCount} / ${manualCount}`} />
         <SummaryRow label="Tags" value={tags.length > 0 ? `${tags.length} tags` : 'ไม่มี'} />
       </div>
@@ -578,6 +632,38 @@ function MediaFrame({
   )
 }
 
+function validateAlbumUrls(urls: string[]) {
+  const trimmedUrls = urls.map((url) => url.trim()).filter(Boolean)
+
+  if (trimmedUrls.length < ALBUM_MIN_IMAGES) {
+    return { urls: trimmedUrls, error: 'Album ต้องมีอย่างน้อย 2 รูป' }
+  }
+
+  if (trimmedUrls.some((url) => !isHttpsUrl(url))) {
+    return { urls: trimmedUrls, error: 'Album image URL ต้องเป็น public HTTPS URL' }
+  }
+
+  return { urls: trimmedUrls, error: '' }
+}
+
+async function cleanupCreatedRows(contentItemId: string | null, assetIds: string[]) {
+  if (contentItemId) {
+    await supabase.from('cmp_content_items').delete().eq('id', contentItemId)
+  }
+  if (assetIds.length > 0) {
+    await supabase.from('cmp_assets').delete().in('id', assetIds)
+  }
+}
+
+function isSingleAssetMedia(value: MediaMode): value is CreateAssetType {
+  return value === 'image' || value === 'video' || value === 'reel' || value === 'story'
+}
+
+function contentTypeForMedia(value: MediaMode): ContentType {
+  if (value === 'reel' || value === 'story' || value === 'video') return value
+  return 'post'
+}
+
 function parseTags(value: string) {
   return value.split(',').map((tag) => tag.trim()).filter(Boolean)
 }
@@ -612,6 +698,12 @@ function createAssetName(title: string, url: string) {
   }
 }
 
-function mediaTypeLabel(type: CreateAssetType) {
+function createAlbumAssetName(title: string, index: number) {
+  const cleanTitle = title.trim() || 'CMP album'
+  return `${cleanTitle} - Image ${index + 1}`
+}
+
+function mediaTypeLabel(type: MediaMode) {
+  if (type === 'album') return 'Album'
   return MEDIA_TYPES.find((item) => item.value === type)?.label ?? type
 }

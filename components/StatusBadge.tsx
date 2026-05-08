@@ -14,7 +14,7 @@ const styles: Record<BadgeStatus, string> = {
 }
 
 const labels: Record<BadgeStatus, string> = {
-  draft: 'ร่าง',
+  draft: 'ยังไม่กำหนด',
   review: 'รอตรวจ',
   approved: 'อนุมัติแล้ว',
   scheduled: 'กำหนดแล้ว',
