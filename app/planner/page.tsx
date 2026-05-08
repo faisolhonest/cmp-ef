@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { Platform, PublishingStatus, ScheduleStatus } from '@/lib/types'
+import type { Asset, Platform, PublishingStatus, ScheduleStatus } from '@/lib/types'
 import { getSchedulePublishingStatus } from '@/lib/publishingStatus'
 import StatusBadge from '@/components/StatusBadge'
 import PlatformIcon from '@/components/PlatformIcon'
@@ -19,7 +19,10 @@ type CalendarItem = {
   campaign_id: string | null
   campaign_name: string | null
   caption_main: string | null
+  thumbnailUrl: string | null
 }
+
+type PlannerAsset = Pick<Asset, 'id' | 'asset_type' | 'url' | 'thumbnail_url'>
 
 const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
@@ -42,6 +45,8 @@ const CHANNEL_DROPDOWN_OPTIONS = CHANNEL_OPTIONS.map(({ value, label, dotClassNa
   label,
   dotClassName,
 }))
+const PLANNER_THUMB_ICON_CLASS =
+  '[&_.platform-badge]:!h-8 [&_.platform-badge]:!w-8 [&_.icon-svg]:!h-4 [&_.icon-svg]:!w-4'
 
 export default function PlannerPage() {
   const today = new Date()
@@ -77,7 +82,7 @@ export default function PlannerPage() {
       .from('cmp_schedules')
       .select(`
         id, content_item_id, platform, scheduled_at, status,
-        cmp_content_items!inner(id, title, caption_main, campaign_id,
+        cmp_content_items!inner(id, title, content_type, caption_main, campaign_id, asset_ids,
           cmp_campaigns(id, name))
       `)
       .gte('scheduled_at', startOfMonth)
@@ -87,8 +92,21 @@ export default function PlannerPage() {
     if (channelFilter !== 'all') query = query.eq('platform', channelFilter)
     if (campaignFilter !== 'all') query = query.eq('cmp_content_items.campaign_id', campaignFilter)
 
-    query.then(({ data }) => {
+    query.then(async ({ data }) => {
       if (stale) return
+      const assetIds = Array.from(
+        new Set(
+          (data ?? []).flatMap((schedule: any) => {
+            const content = Array.isArray(schedule.cmp_content_items) ? schedule.cmp_content_items[0] : schedule.cmp_content_items
+            return content?.asset_ids ?? []
+          })
+        )
+      )
+      const { data: assetData } = assetIds.length
+        ? await supabase.from('cmp_assets').select('id, asset_type, url, thumbnail_url').in('id', assetIds)
+        : { data: [] as PlannerAsset[] }
+      if (stale) return
+      const assetsById = new Map((assetData ?? []).map((asset) => [asset.id, asset as PlannerAsset]))
       const mappedItems =
         (data ?? []).map((schedule: any) => {
           const content = Array.isArray(schedule.cmp_content_items) ? schedule.cmp_content_items[0] : schedule.cmp_content_items
@@ -107,6 +125,7 @@ export default function PlannerPage() {
             status,
             campaign_id: content?.campaign_id ?? null,
             campaign_name: campaign?.name ?? null,
+            thumbnailUrl: getFirstAssetThumbnail(content?.asset_ids ?? [], assetsById),
           }
         })
       setItems(statusFilter === 'all' ? mappedItems : mappedItems.filter((item) => item.status === statusFilter))
@@ -408,6 +427,18 @@ export default function PlannerPage() {
   )
 }
 
+function getFirstAssetThumbnail(assetIds: string[], assetsById: Map<string, PlannerAsset>) {
+  for (const assetId of assetIds) {
+    const asset = assetsById.get(assetId)
+    if (!asset) continue
+    if (asset.asset_type === 'image') return asset.thumbnail_url || asset.url
+    if ((asset.asset_type === 'video' || asset.asset_type === 'reel' || asset.asset_type === 'story') && asset.thumbnail_url) {
+      return asset.thumbnail_url
+    }
+  }
+  return null
+}
+
 function EventCard({ item }: { item: CalendarItem }) {
   return (
     <div className={`planner-event ${statusEventClass[item.status]}`}>
@@ -426,9 +457,22 @@ function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compac
   return (
     <div className={`planner-list-card ${compact ? 'planner-compact-post-card' : 'p-3'}`}>
       <div className="flex items-start gap-3">
-        <div className={`planner-thumb ${compact ? 'planner-mini-thumb' : ''} planner-thumb-soft`}>
-          <PlatformIcon platform={item.platform} />
-        </div>
+        {item.thumbnailUrl ? (
+          <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-[14px] border border-[var(--line)] bg-slate-50">
+            <div
+              className="h-full w-full bg-cover bg-center"
+              style={{ backgroundImage: `url("${item.thumbnailUrl}")` }}
+              aria-hidden="true"
+            />
+            <span className="absolute -bottom-1 -right-1 origin-bottom-right scale-[0.68] rounded-full border-2 border-white bg-white shadow-sm">
+              <PlatformIcon platform={item.platform} />
+            </span>
+          </div>
+        ) : (
+          <div className={`planner-thumb ${compact ? 'planner-mini-thumb' : ''} planner-thumb-soft ${PLANNER_THUMB_ICON_CLASS}`}>
+            <PlatformIcon platform={item.platform} />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="line-clamp-1 text-[13px] font-semibold text-slate-900">{item.title}</p>
@@ -450,38 +494,47 @@ function PostPreviewCard({ item, compact = false }: { item: CalendarItem; compac
 
 function DayDetailCard({ item }: { item: CalendarItem }) {
   return (
-    <div className="planner-list-card p-3">
-      <div className="flex items-start gap-3">
-        <div className="planner-thumb">
-          <PlatformIcon platform={item.platform} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="line-clamp-2 text-sm font-semibold text-slate-900">{item.title}</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
-            <StatusBadge status={item.status} />
+    <div className="planner-list-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[14px] border border-[var(--line)] bg-slate-50 ${PLANNER_THUMB_ICON_CLASS}`}>
+            <PlatformIcon platform={item.platform} />
           </div>
-
-          <dl className="planner-meta-grid mt-3">
-            <dt className="planner-meta-label">แคมเปญ</dt>
-            <dd className="planner-meta-value truncate">{item.campaign_name ?? 'ไม่ระบุ'}</dd>
-            <dt className="planner-meta-label">ช่องทาง</dt>
-            <dd className="planner-meta-value uppercase">{item.platform}</dd>
-            <dt className="planner-meta-label">สถานะ</dt>
-            <dd className="planner-meta-value">{statusText[item.status]}</dd>
-            <dt className="planner-meta-label">ผู้รับผิดชอบ</dt>
-            <dd className="planner-meta-value">ไม่ระบุ</dd>
-          </dl>
-
-          <Link href={`/content/${item.content_item_id}`} className="primary-button mt-4 inline-flex px-3 py-2 text-xs font-semibold">
-            ดูรายละเอียดโพสต์
-          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900">{item.title}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusBadge status={item.status} />
+              <span className="text-xs font-medium text-[var(--muted)]">
+                {new Date(item.scheduled_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </div>
         </div>
+        {item.thumbnailUrl && (
+          <div className="h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-[16px] border border-emerald-100 bg-emerald-50">
+            <div
+              className="h-full w-full bg-cover bg-center"
+              style={{ backgroundImage: `url("${item.thumbnailUrl}")` }}
+              aria-hidden="true"
+            />
+          </div>
+        )}
       </div>
+
+      <dl className="planner-meta-grid mt-4">
+        <dt className="planner-meta-label">แคมเปญ</dt>
+        <dd className="planner-meta-value truncate">{item.campaign_name ?? 'ไม่ระบุ'}</dd>
+        <dt className="planner-meta-label">ช่องทาง</dt>
+        <dd className="planner-meta-value uppercase">{item.platform}</dd>
+        <dt className="planner-meta-label">สถานะ</dt>
+        <dd className="planner-meta-value">{statusText[item.status]}</dd>
+        <dt className="planner-meta-label">ผู้รับผิดชอบ</dt>
+        <dd className="planner-meta-value">ไม่ระบุ</dd>
+      </dl>
+
+      <Link href={`/content/${item.content_item_id}`} className="primary-button mt-4 inline-flex w-full justify-center px-3 py-2.5 text-xs font-semibold">
+        ดูรายละเอียดโพสต์
+      </Link>
     </div>
   )
 }
