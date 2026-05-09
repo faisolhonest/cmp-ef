@@ -48,7 +48,7 @@ export default function DashboardPage() {
       const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).toISOString()
 
       const [{ data: allSchedulesData }, { data: schedulesData }] = await Promise.all([
-        supabase.from('cmp_schedules').select('content_item_id, platform, status, scheduled_at'),
+        supabase.from('cmp_schedules').select('content_item_id, platform, status, scheduled_at').neq('status', 'skipped'),
         supabase
           .from('cmp_schedules')
           .select('id, content_item_id, platform, status, scheduled_at, cmp_content_items(id, title, content_type, asset_ids)')

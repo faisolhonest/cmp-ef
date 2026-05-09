@@ -48,6 +48,7 @@ const PLATFORMS: { value: Platform; label: string }[] = [
 ]
 
 const AUTO_PLATFORMS: Platform[] = ['fb', 'ig']
+const DELETABLE_SCHEDULE_STATUSES: ScheduleStatus[] = ['pending', 'failed', 'incomplete']
 const EDITABLE_ASSET_TYPES: CreateAssetType[] = ['image', 'video', 'reel', 'story']
 const ALBUM_MIN_IMAGES = 2
 const ALBUM_HELPER_TEXT = 'อัลบั้มต้องมีอย่างน้อย 2 รูป และใช้ URL รูปภาพแบบ https:// เท่านั้น'
@@ -142,17 +143,17 @@ export default function ContentEditPage() {
   const albumPreviewUrls = albumInputUrls.filter(isHttpsUrl)
   const parsedTags = parseTags(form.tags)
   const selectedContentType = contentTypeForMedia(mediaType)
-  const publishingStatus = item ? getPublishingStatus(editSchedules, item.status) : 'draft'
+  const publishingStatus = item ? getPublishingStatus(editSchedules) : 'draft'
   const isPublished = publishingStatus === 'published'
-  const isArchived = publishingStatus === 'archived'
-  const canEditContent = !isPublished && !isArchived
-  const canArchiveContent = !isArchived
-  const archiveActionLabel = isPublished ? 'Archive content' : 'Delete content'
-  const archiveActionDescription = isPublished
-    ? 'Published content cannot be deleted. Archive keeps database rows intact.'
-    : 'Before publishing this uses safe soft delete: status will be set to archived.'
-  const previewPlatform = editSchedules[0]?.platform ?? 'fb'
-  const previewSchedule = editSchedules[0]?.scheduled_at ?? ''
+  const isDeleted = publishingStatus === 'skipped'
+  const canEditContent = !isPublished && !isDeleted
+  const hasDeletableSchedules = editSchedules.some((schedule) => DELETABLE_SCHEDULE_STATUSES.includes(schedule.status))
+  const canDeleteContent = !isDeleted
+  const deleteActionLabel = 'Delete content'
+  const deleteActionDescription = 'รายการนี้จะถูกซ่อนจากระบบและไม่ถูกนำไปโพสต์อัตโนมัติ'
+  const visibleEditSchedules = editSchedules.filter((schedule) => schedule.status !== 'skipped')
+  const previewPlatform = visibleEditSchedules[0]?.platform ?? editSchedules[0]?.platform ?? 'fb'
+  const previewSchedule = visibleEditSchedules[0]?.scheduled_at ?? ''
 
   function updateMediaType(nextMediaType: MediaMode) {
     if (nextMediaType === mediaType) return
@@ -208,7 +209,7 @@ export default function ContentEditPage() {
   async function saveEdit() {
     if (!item) return
     if (!canEditContent) {
-      setError('เผยแพร่แล้วหรือเก็บถาวรแล้ว แก้ไขได้เฉพาะการ Archive เท่านั้น')
+      setError('เผยแพร่แล้วหรือลบแล้ว ไม่สามารถแก้ไขคอนเทนต์นี้ได้')
       return
     }
     if (!form.title.trim()) {
@@ -368,12 +369,13 @@ export default function ContentEditPage() {
     }
 
     if (deletedIds.length > 0) {
-      const { error: deleteErr } = await supabase
+      const { error: skipErr } = await supabase
         .from('cmp_schedules')
-        .delete()
+        .update({ status: 'skipped' as const, updated_at: now })
         .eq('content_item_id', id)
         .in('id', deletedIds)
-      if (deleteErr) throw deleteErr
+        .in('status', DELETABLE_SCHEDULE_STATUSES)
+      if (skipErr) throw skipErr
     }
   }
 
@@ -405,24 +407,31 @@ export default function ContentEditPage() {
     if (deleteErr) throw deleteErr
   }
 
-  async function archiveContent() {
+  async function deleteContent() {
     if (!item) return
-    if (!window.confirm(`${archiveActionLabel}? This sets status to archived without deleting database rows.`)) return
+    if (!window.confirm('Delete content? รายการนี้จะถูกซ่อนจากระบบและไม่ถูกนำไปโพสต์อัตโนมัติ')) return
 
     setArchiving(true)
     setError('')
-    const { error: archiveErr } = await supabase
-      .from('cmp_content_items')
-      .update({ status: 'archived' as const, updated_at: new Date().toISOString() })
-      .eq('id', id)
+    const { data: skippedSchedules, error: skipErr } = await supabase
+      .from('cmp_schedules')
+      .update({ status: 'skipped' as const, updated_at: new Date().toISOString() })
+      .eq('content_item_id', id)
+      .in('status', DELETABLE_SCHEDULE_STATUSES)
+      .select('id')
 
-    if (archiveErr) {
-      setError(archiveErr.message)
+    if (skipErr) {
+      setError(skipErr.message)
+      setArchiving(false)
+      return
+    }
+    if (!skippedSchedules || skippedSchedules.length === 0) {
+      setError('ไม่มี schedule ที่ลบได้ เหลือเฉพาะรายการที่เผยแพร่แล้วหรือถูกลบไปแล้ว')
       setArchiving(false)
       return
     }
 
-    setToast('เก็บคอนเทนต์เข้าคลังถาวรแล้ว')
+    setToast('ลบคอนเทนต์แล้ว')
     setTimeout(() => router.push('/content'), 700)
   }
 
@@ -463,8 +472,8 @@ export default function ContentEditPage() {
                 <span className="font-medium">Publishing status</span>
                 <StatusBadge status={publishingStatus} />
               </div>
-              {isPublished && <p className="mt-2 text-xs text-[var(--muted)]">เผยแพร่แล้ว: core content และ schedules ถูกล็อก แก้ได้เฉพาะ Archive</p>}
-              {isArchived && <p className="mt-2 text-xs text-[var(--muted)]">เก็บถาวรแล้ว: ไม่สามารถแก้ไขคอนเทนต์นี้ได้</p>}
+              {isPublished && <p className="mt-2 text-xs text-[var(--muted)]">เผยแพร่แล้ว: core content และ schedules ถูกล็อก</p>}
+              {isDeleted && <p className="mt-2 text-xs text-[var(--muted)]">ลบแล้ว: ไม่สามารถแก้ไขคอนเทนต์นี้ได้</p>}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -682,14 +691,17 @@ export default function ContentEditPage() {
             )}
           </Card>
 
-          {canArchiveContent && (
+          {canDeleteContent && (
             <div className="flex flex-col gap-3 rounded-[18px] border border-red-100 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-red-900">{archiveActionLabel}</p>
-                <p className="mt-1 text-xs text-red-700">{archiveActionDescription}</p>
+                <p className="text-sm font-semibold text-red-900">{deleteActionLabel}</p>
+                <p className="mt-1 text-xs text-red-700">{deleteActionDescription}</p>
+                {!hasDeletableSchedules && (
+                  <p className="mt-1 text-xs text-red-700">ไม่มี schedule ที่ลบได้ เหลือเฉพาะรายการที่เผยแพร่แล้วหรือถูกลบไปแล้ว</p>
+                )}
               </div>
-              <button type="button" onClick={archiveContent} disabled={saving || archiving} className="secondary-button px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">
-                {archiving ? 'Archiving...' : archiveActionLabel}
+              <button type="button" onClick={deleteContent} disabled={saving || archiving} className="secondary-button px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">
+                {archiving ? 'Deleting...' : deleteActionLabel}
               </button>
             </div>
           )}

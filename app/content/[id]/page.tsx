@@ -39,12 +39,12 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 }
 
 const SCHEDULE_STATUS_LABELS: Record<ScheduleStatus, string> = {
-  pending: 'Pending',
-  auto_posted: 'Auto posted',
-  manually_posted: 'Manually posted',
-  failed: 'Failed',
-  skipped: 'Skipped',
-  incomplete: 'Incomplete',
+  pending: 'กำหนดแล้ว',
+  auto_posted: 'เผยแพร่แล้ว',
+  manually_posted: 'เผยแพร่แล้ว',
+  failed: 'โพสต์ไม่สำเร็จ',
+  skipped: 'ลบแล้ว',
+  incomplete: 'ข้อมูลไม่ครบ',
 }
 
 type CreateAssetType = Extract<AssetType, 'image' | 'video' | 'reel' | 'story'>
@@ -106,8 +106,10 @@ export default function ContentDetailPage() {
   if (!item) return null
 
   const analyticsById = Object.fromEntries(analytics.map((row) => [row.schedule_id, row]))
-  const publishingStatus = getPublishingStatus(schedules, item.status)
-  const canEditContent = publishingStatus !== 'published' && publishingStatus !== 'archived'
+  const publishingStatus = getPublishingStatus(schedules)
+  const visibleSchedules = schedules.filter((schedule) => schedule.status !== 'skipped')
+  const displaySchedules = publishingStatus === 'skipped' ? schedules : visibleSchedules
+  const canEditContent = publishingStatus !== 'published' && publishingStatus !== 'skipped'
   const primaryAsset = assets[0]
   const declaredAssetCount = Array.isArray(item.asset_ids) ? item.asset_ids.length : assets.length
   const hasMultipleAssets = declaredAssetCount > 1 || assets.length > 1
@@ -116,8 +118,8 @@ export default function ContentDetailPage() {
   const previewCaption = item.caption_main ?? ''
   const previewMediaUrl = hasMultipleAssets ? '' : primaryAsset?.url ?? ''
   const previewAssetType = getPreviewAssetType(item.content_type, primaryAsset)
-  const previewPlatform = schedules[0]?.platform ?? 'fb'
-  const previewSchedule = schedules[0]?.scheduled_at ?? ''
+  const previewPlatform = visibleSchedules[0]?.platform ?? schedules[0]?.platform ?? 'fb'
+  const previewSchedule = visibleSchedules[0]?.scheduled_at ?? ''
 
   return (
     <>
@@ -144,7 +146,7 @@ export default function ContentDetailPage() {
               </Link>
             ) : (
               <span className="rounded-full bg-slate-100 px-4 py-2.5 text-sm font-medium text-[var(--muted)]">
-                {publishingStatus === 'published' ? 'เผยแพร่แล้ว แก้ไขไม่ได้' : 'เก็บถาวรแล้ว'}
+                {publishingStatus === 'published' ? 'เผยแพร่แล้ว แก้ไขไม่ได้' : 'ลบแล้ว'}
               </span>
             )}
           </div>
@@ -197,12 +199,12 @@ export default function ContentDetailPage() {
             </Card>
           )}
 
-          <Card title={`กำหนดการโพสต์ (${schedules.length})`}>
-            {schedules.length === 0 ? (
+          <Card title={`กำหนดการโพสต์ (${displaySchedules.length})`}>
+            {displaySchedules.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">ยังไม่มี schedule</p>
             ) : (
               <div className="flex flex-col gap-3">
-                {schedules.map((schedule) => {
+                {displaySchedules.map((schedule) => {
                   const analyticsRow = analyticsById[schedule.id]
                   const scheduleStatus = getSchedulePublishingStatus(schedule.status)
                   return (
@@ -249,7 +251,7 @@ export default function ContentDetailPage() {
             schedule={previewSchedule}
           />
           <Card title="รายละเอียดการโพสต์">
-            {schedules.length === 0 ? (
+            {displaySchedules.length === 0 ? (
               <>
                 <InfoRow label="Platform" value="ยังไม่มี schedule" />
                 <InfoRow label="Status">
@@ -258,7 +260,7 @@ export default function ContentDetailPage() {
                 <InfoRow label="Last updated" value={formatDateTime(item.updated_at)} />
               </>
             ) : (
-              schedules.map((schedule) => (
+              displaySchedules.map((schedule) => (
                 <div key={schedule.id} className="rounded-[14px] border border-[var(--line)] bg-white p-3">
                   <div className="mb-2 flex items-center gap-2">
                     <PlatformIcon platform={schedule.platform} showLabel />

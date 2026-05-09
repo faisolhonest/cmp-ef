@@ -1,6 +1,6 @@
 export type ContentStatus = 'draft' | 'review' | 'approved' | 'scheduled' | 'published' | 'archived'
 export type ScheduleStatus = 'pending' | 'auto_posted' | 'manually_posted' | 'failed' | 'skipped' | 'incomplete'
-export type PublishingStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'incomplete'
+export type PublishingStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'incomplete' | 'skipped'
 export type Platform = 'fb' | 'ig' | 'tiktok' | 'youtube' | 'shopee' | 'other'
 export type PostMode = 'auto' | 'manual'
 export type ContentType = 'post' | 'reel' | 'story' | 'video' | 'live_teaser'

@@ -87,6 +87,7 @@ export default function PlannerPage() {
       `)
       .gte('scheduled_at', startOfMonth)
       .lte('scheduled_at', endOfMonth)
+      .neq('status', 'skipped')
       .order('scheduled_at')
 
     if (channelFilter !== 'all') query = query.eq('platform', channelFilter)
@@ -699,6 +700,7 @@ const statusEventClass: Record<PublishingStatus, string> = {
   published: 'planner-event-published',
   failed: 'planner-event-failed',
   incomplete: 'planner-event-incomplete',
+  skipped: 'planner-event-incomplete',
 }
 
 const statusText: Record<PublishingStatus, string> = {
@@ -707,4 +709,5 @@ const statusText: Record<PublishingStatus, string> = {
   published: 'เผยแพร่แล้ว',
   failed: 'โพสต์ไม่สำเร็จ',
   incomplete: 'ข้อมูลไม่ครบ',
+  skipped: 'ลบแล้ว',
 }

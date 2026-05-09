@@ -1,17 +1,16 @@
-import type { ContentStatus, PublishingStatus, ScheduleStatus } from '@/lib/types'
+import type { PublishingStatus, ScheduleStatus } from '@/lib/types'
 
-export type DisplayPublishingStatus = PublishingStatus | 'archived'
+export type DisplayPublishingStatus = PublishingStatus
 
 type ScheduleLike = {
   status: ScheduleStatus
 }
 
 export function getPublishingStatus(
-  schedules: ScheduleLike[],
-  contentStatus?: ContentStatus | null
+  schedules: ScheduleLike[]
 ): DisplayPublishingStatus {
-  if (contentStatus === 'archived') return 'archived'
   if (schedules.length === 0) return 'draft'
+  if (schedules.every((schedule) => schedule.status === 'skipped')) return 'skipped'
 
   const hasPosted = schedules.some(
     (schedule) => schedule.status === 'auto_posted' || schedule.status === 'manually_posted'
@@ -35,6 +34,8 @@ export function getSchedulePublishingStatus(status: ScheduleStatus): PublishingS
       return 'failed'
     case 'incomplete':
       return 'incomplete'
+    case 'skipped':
+      return 'skipped'
     default:
       return 'scheduled'
   }

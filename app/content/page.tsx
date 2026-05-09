@@ -17,7 +17,7 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   live_teaser: 'Live Teaser',
 }
 
-const PUBLISHING_STATUSES: DisplayPublishingStatus[] = ['draft', 'scheduled', 'published', 'failed', 'incomplete', 'archived']
+const PUBLISHING_STATUSES: DisplayPublishingStatus[] = ['draft', 'scheduled', 'published', 'failed', 'incomplete', 'skipped']
 const ALL_CONTENT_TYPES: ContentType[] = ['post', 'reel', 'story', 'video', 'live_teaser']
 const statusDotClass: Record<DisplayPublishingStatus, string> = {
   draft: 'bg-slate-400',
@@ -25,7 +25,7 @@ const statusDotClass: Record<DisplayPublishingStatus, string> = {
   published: 'bg-green-400',
   failed: 'bg-red-400',
   incomplete: 'bg-amber-400',
-  archived: 'bg-slate-500',
+  skipped: 'bg-slate-500',
 }
 const statusFilterLabels: Record<DisplayPublishingStatus, string> = {
   draft: 'ยังไม่กำหนด',
@@ -33,7 +33,7 @@ const statusFilterLabels: Record<DisplayPublishingStatus, string> = {
   published: 'เผยแพร่แล้ว',
   failed: 'โพสต์ไม่สำเร็จ',
   incomplete: 'ข้อมูลไม่ครบ',
-  archived: 'เก็บถาวร',
+  skipped: 'ลบแล้ว',
 }
 
 type ContentWithSchedulePlatforms = ContentItem & {
@@ -63,8 +63,8 @@ export default function ContentPage() {
       const platformsByItem: Record<string, Platform[]> = {}
       const schedulesByItem: Record<string, { status: ScheduleStatus }[]> = {}
       for (const s of schedulesData ?? []) {
-        if (!platformsByItem[s.content_item_id]) platformsByItem[s.content_item_id] = []
-        if (!platformsByItem[s.content_item_id].includes(s.platform as Platform)) {
+        if (s.status !== 'skipped' && !platformsByItem[s.content_item_id]) platformsByItem[s.content_item_id] = []
+        if (s.status !== 'skipped' && !platformsByItem[s.content_item_id].includes(s.platform as Platform)) {
           platformsByItem[s.content_item_id].push(s.platform as Platform)
         }
         if (!schedulesByItem[s.content_item_id]) schedulesByItem[s.content_item_id] = []
@@ -72,11 +72,13 @@ export default function ContentPage() {
       }
 
       setItems(
-        (contentData ?? []).map((item) => ({
-          ...item,
-          platforms: platformsByItem[item.id] ?? [],
-          publishingStatus: getPublishingStatus(schedulesByItem[item.id] ?? [], item.status),
-        }))
+        (contentData ?? [])
+          .map((item) => ({
+            ...item,
+            platforms: platformsByItem[item.id] ?? [],
+            publishingStatus: getPublishingStatus(schedulesByItem[item.id] ?? []),
+          }))
+          .filter((item) => item.publishingStatus !== 'skipped')
       )
       setCampaigns(campaignData ?? [])
       setLoading(false)
