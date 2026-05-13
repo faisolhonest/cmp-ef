@@ -113,21 +113,21 @@ export default function AnalyticsPage() {
           .filter(Boolean)
       )) as string[]
 
-      let assetUrlMap: Record<string, string> = {}
+      let assetMap: Record<string, { url: string | null; thumbnail_url: string | null }> = {}
       if (firstAssetIds.length > 0) {
         const { data: assetData } = await supabase
           .from('cmp_assets')
-          .select('id, url')
+          .select('id, url, thumbnail_url')
           .in('id', firstAssetIds)
-        assetUrlMap = Object.fromEntries((assetData ?? []).map((a: any) => [a.id, a.url ?? '']))
+        assetMap = Object.fromEntries((assetData ?? []).map((a: any) => [a.id, { url: a.url ?? null, thumbnail_url: a.thumbnail_url ?? null }]))
       }
 
       setRows(
         (data ?? []).map((a: any) => {
           const ct: string | null = a.schedule?.content_item?.content_type ?? null
           const firstAssetId: string | null = a.schedule?.content_item?.asset_ids?.[0] ?? null
-          const thumbnailUrl = (ct === 'image' || ct === 'album') && firstAssetId
-            ? assetUrlMap[firstAssetId] ?? null
+          const thumbnailUrl = firstAssetId
+            ? assetMap[firstAssetId]?.thumbnail_url ?? assetMap[firstAssetId]?.url ?? null
             : null
           return {
             id: a.id,
