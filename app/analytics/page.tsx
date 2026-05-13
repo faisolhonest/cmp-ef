@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
             return null
           })
           .filter(Boolean)
-      )] as string[]
+      )) as string[]
 
       let assetUrlMap: Record<string, string> = {}
       if (firstAssetIds.length > 0) {
