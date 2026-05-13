@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
         .order('fetch_date', { ascending: false })
 
       // Collect first asset ID per image/album post for thumbnail fetch
-      const firstAssetIds = [...new Set(
+      const firstAssetIds = Array.from(new Set(
         (data ?? [])
           .map((a: any) => {
             const ct = a.schedule?.content_item?.content_type
