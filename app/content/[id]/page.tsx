@@ -87,7 +87,11 @@ export default function ContentDetailPage() {
 
     if (schedData && schedData.length > 0) {
       const scheduleIds = schedData.map((schedule) => schedule.id)
-      const { data: analyticsData } = await supabase.from('cmp_post_analytics').select('*').in('schedule_id', scheduleIds)
+      const { data: analyticsData } = await supabase
+        .from('cmp_post_analytics_daily_delta')
+        .select('id, schedule_id, reach:reach_total, likes:likes_total, comments:comments_total, shares:shares_total, fetched_at:fetch_date')
+        .in('schedule_id', scheduleIds)
+        .order('fetch_date', { ascending: true })
       setAnalytics(analyticsData ?? [])
     } else {
       setAnalytics([])

@@ -21,7 +21,14 @@ type AnalyticsRow = {
   shares: number | null
   video_views: number | null
   link_clicks: number | null
+  reach_delta: number | null
+  impressions_delta: number | null
+  likes_delta: number | null
+  comments_delta: number | null
+  fetch_date: string
   fetched_at: string
+  content_type: string | null
+  thumbnail_url: string | null
 }
 
 type MetricKey = 'reach' | 'impressions' | 'likes' | 'comments' | 'shares' | 'video_views' | 'link_clicks'
@@ -83,32 +90,70 @@ export default function AnalyticsPage() {
   useEffect(() => {
     async function load() {
       const { data } = await supabase
-        .from('cmp_post_analytics')
+        .from('cmp_post_analytics_daily_delta')
         .select(`
-          id, schedule_id, reach, impressions, likes, comments, shares, video_views, link_clicks, fetched_at,
+          id, schedule_id, fetch_date, fetched_at,
+          reach_total, impressions_total, likes_total, comments_total, shares_total,
+          reach_delta, impressions_delta, likes_delta, comments_delta,
           schedule:cmp_schedules(platform, platform_post_id, scheduled_at, posted_at,
-            content_item:cmp_content_items(title))
+            content_item:cmp_content_items(title, content_type, asset_ids))
         `)
-        .order('fetched_at', { ascending: false })
+        .order('fetch_date', { ascending: false })
+
+      // Collect first asset ID per image/album post for thumbnail fetch
+      const firstAssetIds = [...new Set(
+        (data ?? [])
+          .map((a: any) => {
+            const ct = a.schedule?.content_item?.content_type
+            if (ct === 'image' || ct === 'album') {
+              return a.schedule?.content_item?.asset_ids?.[0] ?? null
+            }
+            return null
+          })
+          .filter(Boolean)
+      )] as string[]
+
+      let assetUrlMap: Record<string, string> = {}
+      if (firstAssetIds.length > 0) {
+        const { data: assetData } = await supabase
+          .from('cmp_assets')
+          .select('id, url')
+          .in('id', firstAssetIds)
+        assetUrlMap = Object.fromEntries((assetData ?? []).map((a: any) => [a.id, a.url ?? '']))
+      }
 
       setRows(
-        (data ?? []).map((a: any) => ({
-          id: a.id,
-          schedule_id: a.schedule_id ?? null,
-          platform_post_id: a.schedule?.platform_post_id ?? null,
-          title: a.schedule?.content_item?.title ?? '-',
-          platform: (a.schedule?.platform ?? 'other') as Platform,
-          scheduled_at: a.schedule?.scheduled_at ?? '',
-          posted_at: a.schedule?.posted_at ?? null,
-          reach: a.reach,
-          impressions: a.impressions,
-          likes: a.likes,
-          comments: a.comments,
-          shares: a.shares,
-          video_views: a.video_views,
-          link_clicks: a.link_clicks,
-          fetched_at: a.fetched_at,
-        }))
+        (data ?? []).map((a: any) => {
+          const ct: string | null = a.schedule?.content_item?.content_type ?? null
+          const firstAssetId: string | null = a.schedule?.content_item?.asset_ids?.[0] ?? null
+          const thumbnailUrl = (ct === 'image' || ct === 'album') && firstAssetId
+            ? assetUrlMap[firstAssetId] ?? null
+            : null
+          return {
+            id: a.id,
+            schedule_id: a.schedule_id ?? null,
+            platform_post_id: a.schedule?.platform_post_id ?? null,
+            title: a.schedule?.content_item?.title ?? '-',
+            platform: (a.schedule?.platform ?? 'other') as Platform,
+            scheduled_at: a.schedule?.scheduled_at ?? '',
+            posted_at: a.schedule?.posted_at ?? null,
+            reach: a.reach_total,
+            impressions: a.impressions_total,
+            likes: a.likes_total,
+            comments: a.comments_total,
+            shares: a.shares_total,
+            video_views: null,
+            link_clicks: null,
+            reach_delta: a.reach_delta,
+            impressions_delta: a.impressions_delta,
+            likes_delta: a.likes_delta,
+            comments_delta: a.comments_delta,
+            fetch_date: a.fetch_date ?? '',
+            fetched_at: a.fetched_at ?? a.fetch_date ?? '',
+            content_type: ct,
+            thumbnail_url: thumbnailUrl,
+          }
+        })
       )
       setLoading(false)
     }
@@ -118,19 +163,20 @@ export default function AnalyticsPage() {
   const channelFiltered = rows.filter((r) => channelFilter === 'all' || r.platform === channelFilter)
 
   const filtered = channelFiltered.filter((r) => {
-    if (dateFrom && r.scheduled_at < dateFrom) return false
-    if (dateTo && r.scheduled_at > dateTo + 'T23:59:59') return false
+    if (dateFrom && r.fetch_date < dateFrom) return false
+    if (dateTo && r.fetch_date > dateTo) return false
     return true
   })
 
   const latestRows = getLatestRows(filtered)
+  const deltaRows = groupAndSumDelta(filtered)
   const trendData = buildTrendData(filtered)
-  const totals = sumMetrics(latestRows)
+  const totals = sumDeltaMetrics(filtered)
   const compareData = buildComparisonData(channelFiltered, latestRows, Number(compareRange))
   const engagementTotal = totals.likes + totals.comments + totals.shares
   const engagementBase = Math.max(totals.impressions || totals.reach, 1)
   const engagementRate = (engagementTotal / engagementBase) * 100
-  const platformData = buildPlatformData(latestRows)
+  const platformData = buildPlatformData(filtered)
   const heatmapData = buildPostingHeatmap(latestRows)
   const bestPlatform = platformData.reduce((best, item) => (item.reach > best.reach ? item : best), platformData[0])
   const bestHour = getBestHour(latestRows)
@@ -235,11 +281,11 @@ export default function AnalyticsPage() {
         <article className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.08)] md:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-slate-950">Post Performance</h3>
-            <span className="text-xs font-semibold text-[var(--muted)]">{latestRows.length} posts · {filtered.length} snapshots</span>
+            <span className="text-xs font-semibold text-[var(--muted)]">{deltaRows.length} posts · {filtered.length} snapshots</span>
           </div>
           {loading ? (
             <p className="py-12 text-center text-[var(--muted)]">Loading...</p>
-          ) : latestRows.length === 0 ? (
+          ) : deltaRows.length === 0 ? (
             <p className="py-12 text-center text-[var(--muted)]">No analytics data found</p>
           ) : (
             <div className="table-shell">
@@ -271,17 +317,15 @@ export default function AnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {latestRows.map((row) => {
+                  {deltaRows.map((row) => {
                     const rowEngagement = toNumber(row.likes) + toNumber(row.comments) + toNumber(row.shares)
-                    const rowBase = Math.max(toNumber(row.impressions) || toNumber(row.reach), 1)
-                    const rowHistory = getRowHistory(filtered, row)
+                    const rowBase = Math.max(toNumber(row.reach) || toNumber(row.impressions), 1)
+                    const rowHistory = getDeltaHistory(filtered, row)
                     return (
                       <tr key={row.id} className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/90 hover:shadow-[inset_3px_0_0_rgba(16,185,129,0.35)]">
                         <td className="py-3 pr-3">
                           <div className="flex min-w-0 items-center gap-2.5">
-                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 via-sky-50 to-blue-100 text-sm font-bold text-emerald-800 shadow-[0_12px_28px_rgba(15,118,110,0.14)] ring-1 ring-white">
-                              {getInitials(row.title)}
-                            </div>
+                            <PostThumbnail contentType={row.content_type} thumbnailUrl={row.thumbnail_url} title={row.title} />
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-950">{row.title}</p>
                               <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--muted)]">Snapshot {formatDate(row.fetched_at)}</p>
@@ -392,6 +436,21 @@ function sumMetrics(rows: AnalyticsRow[]): MetricTotals {
   )
 }
 
+function sumDeltaMetrics(rows: AnalyticsRow[]): MetricTotals {
+  return rows.reduce(
+    (acc, r) => ({
+      reach: acc.reach + toNumber(r.reach_delta),
+      impressions: acc.impressions + toNumber(r.impressions_delta),
+      likes: acc.likes + toNumber(r.likes_delta),
+      comments: acc.comments + toNumber(r.comments_delta),
+      shares: acc.shares + toNumber(r.shares),
+      video_views: 0,
+      link_clicks: 0,
+    }),
+    emptyTotals()
+  )
+}
+
 function getStablePostKey(row: AnalyticsRow) {
   return row.schedule_id || row.platform_post_id || row.id
 }
@@ -408,6 +467,43 @@ function getLatestRows(rows: AnalyticsRow[]) {
   })
 
   return Array.from(latest.values()).sort((a, b) => getTimeValue(b.fetched_at) - getTimeValue(a.fetched_at))
+}
+
+function groupAndSumDelta(rows: AnalyticsRow[]): AnalyticsRow[] {
+  const groups = new Map<string, AnalyticsRow>()
+
+  rows.forEach((row) => {
+    const key = getStablePostKey(row)
+    const existing = groups.get(key)
+    if (!existing) {
+      groups.set(key, {
+        ...row,
+        reach: toNumber(row.reach_delta),
+        impressions: toNumber(row.impressions_delta),
+        likes: toNumber(row.likes_delta),
+        comments: toNumber(row.comments_delta),
+      })
+    } else {
+      groups.set(key, {
+        ...existing,
+        reach: existing.reach! + toNumber(row.reach_delta),
+        impressions: existing.impressions! + toNumber(row.impressions_delta),
+        likes: existing.likes! + toNumber(row.likes_delta),
+        comments: existing.comments! + toNumber(row.comments_delta),
+      })
+    }
+  })
+
+  return Array.from(groups.values()).sort((a, b) => getTimeValue(b.fetched_at) - getTimeValue(a.fetched_at))
+}
+
+function getDeltaHistory(rows: AnalyticsRow[], target: AnalyticsRow) {
+  const key = getStablePostKey(target)
+  const values = rows
+    .filter((row) => getStablePostKey(row) === key)
+    .sort((a, b) => getTimeValue(a.fetched_at) - getTimeValue(b.fetched_at))
+    .map((row) => toNumber(row.reach_delta) || toNumber(row.impressions_delta) || toNumber(row.likes_delta))
+  return values.length > 1 ? values : [values[0] ?? 0, values[0] ?? 0, values[0] ?? 0]
 }
 
 function buildComparisonData(rows: AnalyticsRow[], latestRows: AnalyticsRow[], days: number): ComparisonData {
@@ -492,8 +588,7 @@ function buildTrendData(rows: AnalyticsRow[]): TrendPoint[] {
   const buckets = new Map<string, TrendPoint>()
 
   rows.forEach((row) => {
-    const date = row.posted_at || row.scheduled_at || row.fetched_at
-    const key = getDateKey(date)
+    const key = row.fetch_date || getDateKey(row.fetched_at)
     const existing = buckets.get(key) ?? {
       label: key,
       reach: 0,
@@ -504,36 +599,16 @@ function buildTrendData(rows: AnalyticsRow[]): TrendPoint[] {
       video_views: 0,
       link_clicks: 0,
     }
-    existing.reach += toNumber(row.reach)
-    existing.impressions += toNumber(row.impressions)
-    existing.likes += toNumber(row.likes)
-    existing.comments += toNumber(row.comments)
-    existing.shares += toNumber(row.shares)
-    existing.video_views += toNumber(row.video_views)
-    existing.link_clicks += toNumber(row.link_clicks)
+    existing.reach += toNumber(row.reach_delta)
+    existing.impressions += toNumber(row.impressions_delta)
+    existing.likes += toNumber(row.likes_delta)
+    existing.comments += toNumber(row.comments_delta)
     buckets.set(key, existing)
   })
 
-  const dailyData = Array.from(buckets.values())
+  return Array.from(buckets.values())
     .sort((a, b) => a.label.localeCompare(b.label))
     .slice(-9)
-
-  if (dailyData.length > 1 || rows.length <= 1) return dailyData
-
-  return rows
-    .slice()
-    .sort((a, b) => getTimeValue(a.fetched_at) - getTimeValue(b.fetched_at))
-    .slice(-9)
-    .map((row, index) => ({
-      label: `P${index + 1}`,
-      reach: toNumber(row.reach),
-      impressions: toNumber(row.impressions),
-      likes: toNumber(row.likes),
-      comments: toNumber(row.comments),
-      shares: toNumber(row.shares),
-      video_views: toNumber(row.video_views),
-      link_clicks: toNumber(row.link_clicks),
-    }))
 }
 
 function buildMetricCards(totals: MetricTotals, trendData: TrendPoint[], rowCount: number, comparison: ComparisonData): MetricCard[] {
@@ -565,7 +640,7 @@ function buildMetricCards(totals: MetricTotals, trendData: TrendPoint[], rowCoun
 function buildPlatformData(rows: AnalyticsRow[]) {
   const values = CHANNEL_OPTIONS.filter((option) => option.platform).map((option) => {
     const platform = option.platform as Platform
-    const reach = rows.filter((row) => row.platform === platform).reduce((sum, row) => sum + toNumber(row.reach), 0)
+    const reach = rows.filter((row) => row.platform === platform).reduce((sum, row) => sum + toNumber(row.reach_delta), 0)
     return { platform, reach, percent: 0 }
   })
   const maxReach = Math.max(...values.map((item) => item.reach), 1)
@@ -676,6 +751,36 @@ function MetricIcon({ metric }: { metric: MetricKey }) {
       <rect x="3" y="6" width="12" height="12" rx="2" />
     </svg>
   )
+}
+
+function PostThumbnail({ contentType, thumbnailUrl, title }: { contentType: string | null; thumbnailUrl: string | null; title: string }) {
+  const base = 'h-11 w-11 flex-shrink-0 rounded-xl ring-1 ring-white shadow-[0_12px_28px_rgba(15,118,110,0.14)]'
+  const iconBox = `${base} flex items-center justify-center`
+  const iconProps = { className: 'h-5 w-5', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+
+  if ((contentType === 'image' || contentType === 'album') && thumbnailUrl) {
+    return <img src={thumbnailUrl} alt={title} className={`${base} object-cover`} />
+  }
+  if (contentType === 'video') {
+    return (
+      <div className={`${iconBox} bg-gradient-to-br from-violet-100 via-purple-50 to-blue-100 text-violet-600`}>
+        <svg {...iconProps}><polygon points="5 3 19 12 5 21 5 3" /></svg>
+      </div>
+    )
+  }
+  if (contentType === 'text') {
+    return (
+      <div className={`${iconBox} bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-100 text-amber-600`}>
+        <svg {...iconProps}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      </div>
+    )
+  }
+  return <div className={`${base} bg-slate-100`} />
 }
 
 function MiniSparkline({ values, color, compact = false }: { values: number[]; color: string; compact?: boolean }) {
